@@ -28,7 +28,6 @@ export function DashboardShell({
           onToggle={() => setSidebarOpen(!sidebarOpen)}
         />
 
-        {/* Main application */}
         <div className="min-w-0">
 
           <Topbar
