@@ -18,7 +18,7 @@ export const mainNavigation = [
     },
     {
         title:"Quizzes",
-        href:"/quizzes",
+        href:"/quiz",
         icon: ClipboardList,
     },
     {

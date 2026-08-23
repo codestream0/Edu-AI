@@ -33,8 +33,8 @@ export function SidebarItem({
           ? "justify-center px-0"
           : "gap-3 px-3",
         isActive
-          ? "bg-[#EAF3FF] text-[#2F80ED]"
-          : "text-slate-700 hover:bg-slate-100"
+          ? "bg-[#EAF3FF] text-[#2F80ED] dark:bg-blue-950/50 dark:text-blue-400"
+          : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
       )}
     >
       <Icon className="h-4.5 w-4.5 shrink-0" />

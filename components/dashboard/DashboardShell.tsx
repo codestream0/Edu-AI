@@ -12,7 +12,7 @@ export function DashboardShell({
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-[#F5F9FF]">
+    <div className="min-h-screen bg-[#F5F9FF] dark:bg-slate-900">
 
       <div
         className={`grid min-h-screen transition-all duration-300 ${
@@ -35,7 +35,7 @@ export function DashboardShell({
             onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           />
 
-          <main className="p-6">
+          <main className="min-h-[calc(100vh-80px)] p-6">
             {children}
           </main>
 
