@@ -27,6 +27,7 @@ const SignupPage=()=>{
       type: "text",
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value),
       icon:User,
+      key: 1,
     },
     {
       placeholder: "Email",
@@ -34,6 +35,7 @@ const SignupPage=()=>{
       type: "email",
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value),
       icon:Mail,
+      key:2,
     },
     {
       placeholder: "Password",
@@ -41,6 +43,7 @@ const SignupPage=()=>{
       type: "password",
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value),
       icon:LockKeyhole,
+      key:3,
     }
 
   ]
@@ -68,15 +71,15 @@ const SignupPage=()=>{
                       </span>
                   </div>
                   <p className="text-slate-900 text-2xl text-center mb-4">
-                    Create Your Account
+                    Create an Account
                   </p>
                   <p className="text-slate-500 text-center text-md">
-                    Please enter your details to create your account and start your journey with us.
+                    Please enter your details to create an account and start your journey with us.
                   </p>
 
                     <form onSubmit={handleSubmit}  className="flex flex-col gap-4 my-4">
                       {inputField.map((field) => (
-                          <div className="relative">
+                          <div key={field.key} className="relative">
                           <field.icon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 pointer-events-none" />
                           <Input 
                             id={field.placeholder }
