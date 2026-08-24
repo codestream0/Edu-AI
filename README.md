@@ -1,36 +1,181 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎓 EDU AI
 
-## Getting Started
+> An AI-powered learning platform designed to help students learn smarter, understand complex topics, and turn their study materials into interactive learning experiences.
 
-First, run the development server:
+EDU AI is an intelligent student learning platform that combines AI tutoring, document analysis, summarization, quiz generation, and study management into one simple workspace.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Students can ask EDU AI questions, upload their study materials, generate summaries, and create quizzes based on their uploaded content.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ✨ Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 🤖 AI Tutor
 
-## Learn More
+Ask questions about any topic and receive AI-generated explanations designed to support learning.
 
-To learn more about Next.js, take a look at the following resources:
+- Ask academic questions
+- Get clear explanations
+- Continue conversations with the AI
+- Use AI as a personalized study assistant
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 📄 Document Analysis
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Upload your study materials and let EDU AI process them.
 
-## Deploy on Vercel
+Supported file types:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- PDF
+- DOCX
+- PPTX
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Students can use their uploaded materials to:
+
+- Understand difficult content
+- Generate summaries
+- Extract important points
+- Prepare for examinations
+
+### 📝 AI Summarization
+
+Turn long study materials into concise and understandable notes.
+
+EDU AI can help students identify:
+
+- Key concepts
+- Important definitions
+- Main ideas
+- Important sections
+- Revision points
+
+### 🧠 AI Quiz Generator
+
+Generate quizzes directly from uploaded study materials.
+
+Students can generate quizzes containing:
+
+- Multiple-choice questions
+- Questions based on the uploaded document
+- Answers and explanations
+- Different difficulty levels
+
+This allows students to test their understanding instead of simply reading their materials.
+
+### 📊 Study Progress
+
+Track your learning activity and monitor your study progress.
+
+Future progress features may include:
+
+- Quiz performance
+- Study activity
+- Learning streaks
+- Topics studied
+- Accuracy statistics
+- Personalized learning insights
+
+### 📚 Learning Library
+
+Keep your study resources organized in one place.
+
+Students can manage:
+
+- Uploaded documents
+- Generated summaries
+- Saved materials
+- Quiz history
+- Recent activities
+
+### 🌙 Dark Mode
+
+EDU AI supports both light and dark themes for a comfortable learning experience.
+
+---
+
+# 🛠️ Tech Stack
+
+## Frontend
+
+- **Next.js**
+- **React**
+- **TypeScript**
+- **Tailwind CSS**
+- **shadcn/ui**
+- **Lucide React**
+- **next/font**
+
+## AI
+
+The AI layer is designed to support:
+
+- Question answering
+- Document summarization
+- Quiz generation
+- Personalized learning assistance
+
+## Planned Backend
+
+The platform can be extended with:
+
+- Node.js
+- NestJS / Express
+- PostgreSQL
+- REST API
+- JWT authentication
+- AI API integration
+- File storage
+
+---
+
+# 📁 Project Structure
+
+```text
+edu-ai/
+│
+├── app/
+│   ├── (auth)/
+│   │   ├── login/
+│   │   └── signup/
+│   │
+│   ├── (dashboard)/
+│   │   ├── dashboard/
+│   │   ├── ai-tutor/
+│   │   ├── document/
+│   │   ├── quiz/
+│   │   ├── progress/
+│   │   ├── saved/
+│   │   ├── activity/
+│   │   ├── settings/
+│   │   └── help/
+│   │
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+│
+├── components/
+│   ├── dashboard/
+│   │   ├── sidebar/
+│   │   │   ├── sidebar.tsx
+│   │   │   ├── sidebarItem.tsx
+│   │   │   └── sidebar_data.ts
+│   │   │
+│   │   ├── topbar.tsx
+│   │   └── dashboardShell.tsx
+│   │
+│   ├── ui/
+│   │   └── ...
+│   │
+│   └── ...
+│
+├── lib/
+│   ├── utils.ts
+│   └── ...
+│
+├── public/
+│   ├── logo.png
+│   └── ...
+│
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+└── README.md
