@@ -1,10 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {
-  ChevronDown,
-  X,
-} from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 
 import {
   mainNavigation,
@@ -19,20 +16,22 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-export function Sidebar({
-  open,
-  onToggle,
-}: SidebarProps) {
+export function Sidebar({ open, onToggle }: SidebarProps) {
   return (
     <>
-        {open && (
-          <div
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-            onClick={onToggle}
-          />
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={onToggle}
+        />
       )}
+
       <aside
         className={`
+          fixed
+          inset-y-0
+          left-0
+          z-50
           h-screen
           overflow-hidden
           border-r
@@ -40,19 +39,22 @@ export function Sidebar({
           bg-white
           transition-all
           duration-300
+
           dark:border-slate-800
           dark:bg-slate-950
+
           lg:static
           lg:z-auto
-          ${open
-            ? "w-64 translate-x-0"
-            : "w-18 -translate-x-full lg:w-18 lg:translate-x-0"
+
+          ${
+            open
+              ? "w-64 translate-x-0"
+              : "w-18 -translate-x-full lg:w-18 lg:translate-x-0"
           }
         `}
       >
-
+        
         <div className="flex h-20 items-center justify-between px-4">
-
           <div
             className={`flex items-center ${
               open
@@ -65,7 +67,7 @@ export function Sidebar({
               alt="EDU AI Logo"
               width={45}
               height={45}
-              className="h-auto w-11.25 shrink-0"
+              className="h-auto w-[45px] shrink-0"
             />
 
             {open && (
@@ -75,7 +77,6 @@ export function Sidebar({
                   text-lg
                   font-bold
                   text-[#0F172A]
-
                   dark:text-slate-100
                 "
               >
@@ -92,10 +93,10 @@ export function Sidebar({
                 p-1.5
                 text-slate-500
                 hover:bg-slate-100
-
                 dark:text-slate-400
                 dark:hover:bg-slate-800
               "
+              aria-label="Close sidebar"
             >
               <X className="h-5 w-5" />
             </button>
@@ -103,7 +104,8 @@ export function Sidebar({
         </div>
 
         <div className="flex h-[calc(100vh-80px)] flex-col px-3">
-
+          
+          {/* Main navigation */}
           <nav className="space-y-1">
             {mainNavigation.map((item) => (
               <SidebarItem
@@ -116,9 +118,9 @@ export function Sidebar({
             ))}
           </nav>
 
+          {/* Library */}
           {open && (
             <div className="mt-8">
-
               <div
                 className="
                   mb-2
@@ -128,7 +130,6 @@ export function Sidebar({
                   uppercase
                   tracking-wide
                   text-slate-400
-
                   dark:text-slate-500
                 "
               >
@@ -146,18 +147,16 @@ export function Sidebar({
                   />
                 ))}
               </nav>
-
             </div>
           )}
 
+          {/* Bottom section */}
           <div className="mt-auto pb-4">
-
             <div
               className="
                 mb-3
                 border-t
                 border-slate-200
-
                 dark:border-slate-800
               "
             />
@@ -184,7 +183,6 @@ export function Sidebar({
                   rounded-xl
                   p-3
                   hover:bg-slate-50
-
                   dark:hover:bg-slate-900
                 "
               >
@@ -201,7 +199,6 @@ export function Sidebar({
                     text-sm
                     font-semibold
                     text-[#2F80ED]
-
                     dark:bg-blue-950
                     dark:text-blue-400
                   "
@@ -210,14 +207,12 @@ export function Sidebar({
                 </div>
 
                 <div className="min-w-0 flex-1">
-
                   <p
                     className="
                       truncate
                       text-sm
                       font-semibold
                       text-slate-900
-
                       dark:text-slate-100
                     "
                   >
@@ -228,13 +223,11 @@ export function Sidebar({
                     className="
                       text-xs
                       text-slate-500
-
                       dark:text-slate-400
                     "
                   >
                     Student
                   </p>
-
                 </div>
 
                 <ChevronDown
@@ -242,14 +235,11 @@ export function Sidebar({
                     h-4
                     w-4
                     text-slate-400
-
                     dark:text-slate-500
                   "
                 />
-
               </div>
             )}
-
           </div>
         </div>
       </aside>
