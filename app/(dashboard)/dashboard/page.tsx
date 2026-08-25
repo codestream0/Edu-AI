@@ -81,7 +81,7 @@ const DashboardPage = () => {
 
     <div className="mt-6 space-y-2">
       <h1 className="font-semibold">Study overview</h1>
-      <div className=" flex gap-1 justify-around" >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <LearningStatsCard icon={<FileText/>} title="Document" count={12} />
         <LearningStatsCard icon={<ClipboardList/>} title="Quizzes" count={10} />
         <LearningStatsCard icon={<FileUp/>} title="Average score" count={52} />
