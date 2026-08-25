@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Brain, FileUp, MessageCircle, Mic, Paperclip, Sparkles } from "lucide-react";
+import { ArrowRight, Brain, ClipboardList, FileText, FileUp, FireExtinguisher, Flame, MessageCircle, Mic, Paperclip, Power, PowerCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { RecentDocument } from "@/components/dashboard/recentDocument";
 
 const DashboardPage = () => {
     return (
@@ -64,8 +65,29 @@ const DashboardPage = () => {
       <ActivityCards icon={<Sparkles/>} title="AI summary" description="turn your study plan into a concise note" direct="summarize" link="/document" />
       <ActivityCards icon={<Brain/>} title="Take a Quiz" description="Generate quizzes from your study material" direct="Generate" link="/quiz" />
     </div>
+    <div className="mt-6">
+      <div className="flex justify-between items-center " >
+        <h1 className="font-semibold " >Recent study Material</h1>
+        <Link href={"/document"} className="text-[12px] font-medium " >view all</Link>
+      </div>
+      <div className="grid gap-4 mt-4" >
+        <RecentDocument title="maths" type="docx" pages={24} description="last studied yesterday" />
+        <RecentDocument title="maths" type="docx" pages={24} description="last studied yesterday" />
+        <RecentDocument title="maths" type="docx" pages={24} description="last studied yesterday" />
+        <RecentDocument title="maths" type="docx" pages={24} description="last studied yesterday" />
 
-    
+      </div>  
+    </div>
+
+    <div className="mt-6 space-y-2">
+      <h1 className="font-semibold">Study overview</h1>
+      <div className=" flex gap-1 justify-around" >
+        <LearningStatsCard icon={<FileText/>} title="Document" count={12} />
+        <LearningStatsCard icon={<ClipboardList/>} title="Quizzes" count={10} />
+        <LearningStatsCard icon={<FileUp/>} title="Average score" count={52} />
+        <LearningStatsCard icon={<Flame/>} title="Study days streaks" count={7} />
+      </div>
+    </div>
 
   </div>
     )
@@ -85,6 +107,18 @@ const ActivityCards=({icon, title, description,direct,link}:{icon: React.ReactNo
         <p className="flex gap-1 items-center font-bold text-slate-900 text-[11px] dark:text-white " >{direct} <ArrowRight className="h-3 w-3" /></p>
       </div>
     </Link>
+  )
+}
+
+const LearningStatsCard=({icon,title,count}:{icon:React.ReactNode,title:string,count:number})=>{
+  return(
+    <div className=" rounded-xl  min-w-100  bg-slate-50 p-6 border border-gray-300 dark:bg-slate-800 dark:border-gray-800 " >
+      <div className="flex gap-6 items-center mb-8" >
+        <button className="h-5 w-3 text-slate-500 ">{icon}</button>
+        <p className="text-lg font-semibold text-[14px] text-slate-900 dark:text-white" >{title}</p>
+      </div>
+      <p className="text-center" >{count}</p>
+    </div>
   )
 }
 

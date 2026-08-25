@@ -20,7 +20,7 @@ export function DashboardShell({
           shrink-0 transition-all duration-300
 
           hidden md:block
-          ${sidebarOpen ? "md:w-64" : "md:w-[72px]"}
+          ${sidebarOpen ? "md:w-64" : "md:w-18"}
         `}
       >
         <Sidebar

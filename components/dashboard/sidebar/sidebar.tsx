@@ -53,7 +53,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           }
         `}
       >
-        
+
         <div className="flex h-20 items-center justify-between px-4">
           <div
             className={`flex items-center ${
@@ -67,7 +67,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
               alt="EDU AI Logo"
               width={45}
               height={45}
-              className="h-auto w-[45px] shrink-0"
+              className="h-auto w-11.25 shrink-0"
             />
 
             {open && (
