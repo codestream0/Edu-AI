@@ -7,19 +7,14 @@ import Image from "next/image";
 import {
   ArrowRight,
   BarChart3,
-  Bell,
-  BookOpen,
   Brain,
   Check,
-  ChevronDown,
   FileText,
   Flame,
   Menu,
   MessageCircle,
-  Moon,
   Play,
   Sparkles,
-  Sun,
   Upload,
   X,
   Zap,
@@ -892,7 +887,8 @@ export default function Home() {
             <div className="md:col-span-2">
               <Link href="/" className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EAF3FF]">
-                  <Sparkles className="h-4 w-4 text-[#2F80ED]" />
+                  {/* <Sparkles className="h-4 w-4 text-[#2F80ED]" /> */}
+                  <Image src="/logo.png" alt="LOgo" height={40} width={40}  />
                 </div>
 
                 <span className="font-bold">
