@@ -207,7 +207,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                     dark:text-blue-400
                   "
                 >
-                  {fullName.split(" ")[0]}
+                  {fullName.split("")[0].toUpperCase()}
                 </div>
 
                 <div className="min-w-0 flex-1">

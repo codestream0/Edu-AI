@@ -3,6 +3,10 @@
 import { Menu, Bell, Search, LogOut } from "lucide-react";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { ThemeToggle } from "./themetoggle";
+import {logout} from "@/lib/redux/features/auth/authSlice";
+import {useAppDispatch} from "@/lib/redux/hooks"
+import {useRouter} from "next/navigation"
+import { api } from "@/lib/api";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -12,6 +16,19 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const user = useAppSelector((state) => state.auth.user);
   console.log(user?.fullName || "user")
   const fullName = user?.fullName || "User";
+  const dispatch = useAppDispatch()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try{
+      await api.post("/auth/logout")
+    }catch(error) {
+      console.log("Logout failed:", error);
+    }finally {
+      dispatch(logout())
+      router.replace("/login")
+    }
+  }
   return (
     <header
       className="
@@ -142,7 +159,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           />
         </button>
         <button
-        // onClick={}
+          onClick={handleLogout}
           type="button"
           aria-label="Notifications"
           className="

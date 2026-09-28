@@ -31,8 +31,9 @@ const SignupPage = () => {
         email,
         password
       });
+      const {user, accessToken} = response.data;
       console.log(response.data.user);
-      dispatch(setCredentials(response.data.user));
+      dispatch(setCredentials({User: user, accessToken: accessToken}));
       router.push("/dashboard");
     } catch (error) {
       if (axios.isAxiosError(error)) {

@@ -30,8 +30,8 @@ const LoginPage=()=>{
                 password
             })
             console.log(response.data.user)
-
-            dispatch(setCredentials(response.data.user))
+            const {user, accessToken} = response.data
+            dispatch(setCredentials({User: user, accessToken: accessToken}))
             router.push("/dashboard")
 
         }catch(error){
