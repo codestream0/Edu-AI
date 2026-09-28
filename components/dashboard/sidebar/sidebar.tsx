@@ -10,6 +10,7 @@ import {
 } from "./sidebar_data";
 
 import { SidebarItem } from "./sidebarItem";
+import { useAppSelector } from "@/lib/redux/hooks";
 
 interface SidebarProps {
   open: boolean;
@@ -17,6 +18,9 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, onToggle }: SidebarProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  const fullName = user?.fullName || "User";
+
   return (
     <>
       {open && (
@@ -203,7 +207,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                     dark:text-blue-400
                   "
                 >
-                  H
+                  {fullName.split(" ")[0]}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -216,7 +220,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                       dark:text-slate-100
                     "
                   >
-                    Hamza
+                    {fullName.split(" ",2)[0].charAt(0).toLowerCase() + fullName.split(" ",2)[0].slice(1)}
                   </p>
 
                   <p

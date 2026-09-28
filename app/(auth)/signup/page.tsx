@@ -8,6 +8,8 @@ import { User, Mail, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { api } from "@/lib/api";
+import {useAppDispatch} from "@/lib/redux/hooks";
+import {setCredentials} from "@/lib/redux/features/auth/authSlice";
 
 const SignupPage = () => {
   const [fullName, setFullName] = React.useState("");
@@ -15,7 +17,7 @@ const SignupPage = () => {
   const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
-
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,8 +31,9 @@ const SignupPage = () => {
         email,
         password
       });
-      console.log(response.data);
-      router.push("/login");
+      console.log(response.data.user);
+      dispatch(setCredentials(response.data.user));
+      router.push("/dashboard");
     } catch (error) {
       if (axios.isAxiosError(error)) {
         setError(

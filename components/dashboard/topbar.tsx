@@ -1,11 +1,7 @@
 "use client";
 
-import {
-  Menu,
-  Bell,
-  Search,
-} from "lucide-react";
-
+import { Menu, Bell, Search, LogOut } from "lucide-react";
+import { useAppSelector } from "@/lib/redux/hooks";
 import { ThemeToggle } from "./themetoggle";
 
 interface TopbarProps {
@@ -13,6 +9,9 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMenuClick }: TopbarProps) {
+  const user = useAppSelector((state) => state.auth.user);
+  console.log(user?.fullName || "user")
+  const fullName = user?.fullName || "User";
   return (
     <header
       className="
@@ -24,9 +23,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         dark:bg-slate-950
       "
     >
-
       <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-
         <button
           onClick={onMenuClick}
           type="button"
@@ -113,7 +110,6 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2 lg:gap-4">
-
         <ThemeToggle />
 
         <button
@@ -145,9 +141,26 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             "
           />
         </button>
+        <button
+        // onClick={}
+          type="button"
+          aria-label="Notifications"
+          className="
+            relative
+            rounded-lg
+            p-2
+            text-slate-700
+            transition-colors
+            hover:bg-slate-100
+
+            dark:text-slate-300
+            dark:hover:bg-slate-800
+          "
+        >
+          <LogOut />
+        </button>
 
         <div className="flex items-center gap-2 sm:gap-3">
-
           <div
             className="
               flex
@@ -166,12 +179,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               dark:text-blue-400
             "
           >
-            H
+            {fullName.split("")[0].toUpperCase()}
           </div>
 
           <div className="hidden lg:block">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              Hamza
+              {fullName.split(" ",2)[0].charAt(0).toUpperCase() + fullName.split(" ",2)[0].slice(1)}
             </p>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">

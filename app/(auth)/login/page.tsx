@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import axios from "axios";
 import { api } from "@/lib/api";
+import {useAppDispatch,} from "@/lib/redux/hooks"
+import { setCredentials } from "@/lib/redux/features/auth/authSlice"
 
 
 const LoginPage=()=>{
@@ -16,6 +18,7 @@ const LoginPage=()=>{
     const [loading,setLoading] = useState(false)
     const [error,setError] = useState("")
     const router = useRouter()
+    const dispatch = useAppDispatch()
     const handleSubmit= async (e: React.FormEvent<HTMLFormElement>)=>{
         e.preventDefault()
         setLoading(true)
@@ -26,9 +29,10 @@ const LoginPage=()=>{
                 email,
                 password
             })
-            console.log(response.data)
+            console.log(response.data.user)
 
-        router.push("/dashboard")
+            dispatch(setCredentials(response.data.user))
+            router.push("/dashboard")
 
         }catch(error){
             if (axios.isAxiosError(error)) {
