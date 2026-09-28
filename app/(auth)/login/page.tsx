@@ -6,15 +6,41 @@ import { Input } from "@/components/ui/input";
 import { LockKeyhole, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import axios from "axios";
+import { api } from "@/lib/api";
 
 
 const LoginPage=()=>{
     const [email,setEmail] = useState("")
     const [password,setPassword] = useState("")
+    const [loading,setLoading] = useState(false)
+    const [error,setError] = useState("")
     const router = useRouter()
-    const handleSubmit=(e: React.FormEvent<HTMLFormElement>)=>{
+    const handleSubmit= async (e: React.FormEvent<HTMLFormElement>)=>{
         e.preventDefault()
+        setLoading(true)
+        setError("")
+
+        try{
+            const response = await api.post("/auth/login",{
+                email,
+                password
+            })
+            console.log(response.data)
+
         router.push("/dashboard")
+
+        }catch(error){
+            if (axios.isAxiosError(error)) {
+                console.error("Login error:", error.response?.data?.message);
+                setError(error.response?.data?.message || "An error occurred while logging in. Please try again.");
+            } else {
+                console.error("Unexpected error:", error);
+                setError("An unexpected error occurred. Please try again.");
+            }
+        } finally {
+            setLoading(false);
+        }
     }
 
     return(
@@ -65,8 +91,9 @@ const LoginPage=()=>{
                                 className="h-12 pl-11 text-slate-900 text-[28px] font-medium focus-visible:border-blue-500 focus-visible:ring-1 focus-visible:ring-blue-400"
                             />
                         </div>
-                        <Button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white py-5 px-4 rounded-lg text-lg font-semibold mt-4" >
-                            Log in
+                        {error && <p className="text-red-500 text-sm">{error}</p>}
+                        <Button disabled={loading} type="submit" className="bg-blue-500 hover:bg-blue-600 text-white py-5 px-4 rounded-lg text-lg font-semibold mt-4" >
+                            {loading ? "Logging in..." : "Log in"}
                         </Button>
                     </form>
                     <div className="flex items-center justify-center gap-2 mt-4">
