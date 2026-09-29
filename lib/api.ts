@@ -65,7 +65,7 @@ api.interceptors.response.use(
       originalRequest._retry ||
       originalRequest.url?.includes("/auth/signup") ||
       originalRequest.url?.includes("/auth/login") ||
-      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/auth/refresh-token") ||
       originalRequest.url?.includes("/auth/logout")
     ) {
       return Promise.reject(error);
@@ -78,7 +78,7 @@ api.interceptors.response.use(
       // wait for that same refresh operation.
       if (!refreshPromise) {
         refreshPromise = refreshApi
-          .post("/auth/refresh")
+          .post("/auth/refresh-token")
           .then((response) => {
             const newAccessToken =
               response.data.accessToken;

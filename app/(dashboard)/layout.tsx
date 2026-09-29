@@ -1,4 +1,5 @@
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { AuthGuard } from "@/lib/redux/features/auth/AuthGuard";
 
 export default function DashboardLayout({
   children,
@@ -6,8 +7,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <DashboardShell>
-      {children}
-    </DashboardShell>
+    <AuthGuard>
+      <DashboardShell>{children}</DashboardShell>
+    </AuthGuard>
   );
 }

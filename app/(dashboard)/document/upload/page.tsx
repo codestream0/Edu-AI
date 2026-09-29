@@ -3,13 +3,38 @@
 import { ArrowLeft, Upload, FileText } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { api } from "@/lib/api";
 
 export default function UploadDocumentPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string>("");
+  const [success,setSuccess] = useState<string>("")
+  async function handleFileUpload() {
+    if (!file) {
+      setError("Choose a document before uploading.");
+      return;
+    }
+
+    const formData = new FormData();
+    // The backend route uses uploadMiddleware.single("document").
+    formData.append("document", file);
+    formData.append("title", file.name);
+
+    try {
+      const response = await api.post("/document/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log(response.data);
+      setFile(null);
+      setSuccess("document uploaded successfully!!!")
+    } catch (error) {
+      console.error("File upload error:", error);
+      setError("Failed to upload document.");
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-
       <Link
         href="/document"
         className="flex w-fit items-center gap-2 text-sm text-slate-500 hover:text-[#2F80ED]"
@@ -52,12 +77,10 @@ export default function UploadDocumentPage() {
               Drop your document here
             </p>
 
-            <p className="mt-1 text-sm text-slate-500">
-              or click to browse
-            </p>
+            <p className="mt-1 text-sm text-slate-500">or click to browse</p>
 
             <p className="mt-3 text-xs text-slate-400">
-              PDF, DOCX or PPTX · Maximum 20MB
+              PDF, DOCX or PPTX · Maximum 10MB
             </p>
           </>
         )}
@@ -72,13 +95,16 @@ export default function UploadDocumentPage() {
           }}
         />
       </label>
-
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {success && <p className="text-green-700 text-sm" >{success}</p>}
       {file && (
-        <button className="w-full rounded-xl bg-[#2F80ED] px-5 py-3 font-medium text-white hover:bg-blue-600">
+        <button
+          className="w-full rounded-xl bg-[#2F80ED] px-5 py-3 font-medium text-white hover:bg-blue-600"
+          onClick={() => void handleFileUpload()}
+        >
           Upload & Analyze
         </button>
       )}
-
     </div>
   );
 }
