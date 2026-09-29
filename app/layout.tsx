@@ -3,7 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 
 import "./globals.css";
 import { ThemeProvider } from "@/components/themeProvider";
-import { Providers } from "./provider";
+import { Providers } from "../lib/redux/provider";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
