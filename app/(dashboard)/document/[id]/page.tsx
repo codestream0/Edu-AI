@@ -5,6 +5,8 @@ import { ArrowLeft, Brain, FileText, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
+
 
 interface Document {
   _id: string;
@@ -20,6 +22,7 @@ export default function DocumentDetailsPage() {
   const [document, setDocument] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     let active = true;
@@ -54,6 +57,19 @@ export default function DocumentDetailsPage() {
     return () => { active = false; };
   }, [id]);
 
+  const handleDeleteDocument = async (userId:string)=>{
+    try{
+      console.log("loading!!!");
+      
+      const response = await api.delete(`/document/${userId}`);
+      console.log(`Document ${userId} deleted successfully`, response.data);
+      setDocument(null)
+      router.back();
+    }catch(error){
+      console.error("Failed to delete document",error)
+    }
+  }
+
   const title = document?.title || document?.originalName || "Untitled document";
   const fileType = document?.originalName?.split(".").pop()?.toUpperCase() || document?.fileType || "Document";
 
@@ -71,6 +87,12 @@ export default function DocumentDetailsPage() {
             {document && <p className="text-sm text-slate-500">{fileType} · {document.pageCount ?? "—"} pages</p>}
           </div>
         </div>
+        <button
+          className=" rounded-xl bg-[#2F80ED] px-2 py-2 font-medium text-white hover:bg-blue-600"
+          onClick={()=> handleDeleteDocument(id)}
+        >
+          Delete document
+        </button>
       </div>
 
       {loading && <p className="rounded-xl border border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-800">Loading document details...</p>}
