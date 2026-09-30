@@ -1,131 +1,74 @@
 "use client";
 
-import { ArrowLeft, Brain, CheckCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Brain } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useParams } from "next/navigation";
+import { api } from "@/lib/api";
 
-const questions = [
-  {
-    question: "What is the fundamental theorem of calculus?",
-    options: [
-      "A theorem connecting differentiation and integration",
-      "A theorem about matrices",
-      "A theorem about probability",
-      "A theorem about limits only",
-    ],
-    answer: 0,
-  },
-  {
-    question: "What is the integral of x?",
-    options: [
-      "x",
-      "x²",
-      "x² / 2 + C",
-      "2x",
-    ],
-    answer: 2,
-  },
-];
+interface Document {
+  _id: string;
+  title?: string;
+  originalName?: string;
+}
 
 export default function DocumentQuizPage() {
-  const [current, setCurrent] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
+  const { id } = useParams<{ id: string }>();
+  const [document, setDocument] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const question = questions[current];
+  useEffect(() => {
+    let active = true;
+    async function loadDocument() {
+      setLoading(true);
+      setError("");
+      setDocument(null);
+      try {
+        const response = await api.get("/document/get-documents");
+        const documents = response.data?.documents;
+        if (!Array.isArray(documents)) throw new Error("Unexpected documents response");
+        const selected = documents.find((item: Document) => String(item._id) === String(id));
+        if (active) {
+          if (selected) setDocument(selected);
+          else setError("This document could not be found.");
+        }
+      } catch (loadError) {
+        console.error("Failed to load document quiz:", loadError);
+        if (active) setError("Failed to load this document. Please try again.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadDocument();
+    return () => { active = false; };
+  }, [id]);
+
+  const title = document?.title || document?.originalName || "Untitled document";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-
-      <Link
-        href="/document/calculus-ii"
-        className="flex w-fit items-center gap-2 text-sm text-slate-500 hover:text-[#2F80ED]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to document
+      <Link href={`/document/${encodeURIComponent(id)}`} className="flex w-fit items-center gap-2 text-sm text-slate-500 hover:text-[#2F80ED]">
+        <ArrowLeft className="h-4 w-4" /> Back to document
       </Link>
 
       <div>
         <div className="flex items-center gap-2">
           <Brain className="h-6 w-6 text-[#2F80ED]" />
-
-          <h1 className="text-2xl font-bold">
-            Practice Quiz
-          </h1>
+          <h1 className="text-2xl font-bold">Practice Quiz</h1>
         </div>
-
         <p className="mt-1 text-sm text-slate-500">
-          Generated from Calculus II Notes
+          {loading ? "Loading document..." : document ? `For ${title}` : "Document"}
         </p>
       </div>
 
-      {/* Progress */}
-      <div>
-        <div className="mb-2 flex justify-between text-sm">
-          <span>
-            Question {current + 1} of {questions.length}
-          </span>
-
-          <span className="text-slate-500">
-            {Math.round(((current + 1) / questions.length) * 100)}%
-          </span>
+      {loading && <p className="rounded-xl border border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-800">Loading document...</p>}
+      {!loading && error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
+      {document && !loading && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900">
+          Quiz questions for <span className="font-medium text-slate-700 dark:text-slate-200">{title}</span> are not available yet.
         </div>
-
-        <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-          <div
-            className="h-full bg-[#2F80ED]"
-            style={{
-              width: `${((current + 1) / questions.length) * 100}%`,
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Question */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-
-        <h2 className="text-lg font-semibold">
-          {question.question}
-        </h2>
-
-        <div className="mt-6 space-y-3">
-          {question.options.map((option, index) => (
-            <button
-              key={option}
-              onClick={() => setSelected(index)}
-              className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${
-                selected === index
-                  ? "border-[#2F80ED] bg-blue-50 dark:bg-blue-950/30"
-                  : "border-slate-200 hover:border-[#2F80ED] dark:border-slate-700"
-              }`}
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full border text-sm">
-                {String.fromCharCode(65 + index)}
-              </span>
-
-              <span>{option}</span>
-            </button>
-          ))}
-        </div>
-
-        <button
-          disabled={selected === null}
-          onClick={() => {
-            if (current < questions.length - 1) {
-              setCurrent(current + 1);
-              setSelected(null);
-            }
-          }}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2F80ED] px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <CheckCircle className="h-5 w-5" />
-
-          {current === questions.length - 1
-            ? "Finish Quiz"
-            : "Next Question"}
-        </button>
-
-      </div>
-
+      )}
     </div>
   );
 }

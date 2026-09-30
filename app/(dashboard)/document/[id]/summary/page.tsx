@@ -1,81 +1,75 @@
 "use client";
 
-import { ArrowLeft, Copy, Download, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { api } from "@/lib/api";
+
+interface Document {
+  _id: string;
+  title?: string;
+  originalName?: string;
+}
 
 export default function DocumentSummaryPage() {
+  const { id } = useParams<{ id: string }>();
+  const [document, setDocument] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    async function loadDocument() {
+      setLoading(true);
+      setError("");
+      setDocument(null);
+      try {
+        const response = await api.get("/document/get-documents");
+        const documents = response.data?.documents;
+        if (!Array.isArray(documents)) throw new Error("Unexpected documents response");
+        const selected = documents.find((item: Document) => String(item._id) === String(id));
+        if (active) {
+          if (selected) setDocument(selected);
+          else setError("This document could not be found.");
+        }
+      } catch (loadError) {
+        console.error("Failed to load document summary:", loadError);
+        if (active) setError("Failed to load this document. Please try again.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void loadDocument();
+    return () => { active = false; };
+  }, [id]);
+
+  const title = document?.title || document?.originalName || "Untitled document";
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-
-      <Link
-        href="/document/calculus-ii"
-        className="flex w-fit items-center gap-2 text-sm text-slate-500 hover:text-[#2F80ED]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to document
+      <Link href={`/document/${encodeURIComponent(id)}`} className="flex w-fit items-center gap-2 text-sm text-slate-500 hover:text-[#2F80ED]">
+        <ArrowLeft className="h-4 w-4" /> Back to document
       </Link>
 
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-[#2F80ED]" />
-
-            <h1 className="text-2xl font-bold">
-              AI Summary
-            </h1>
-          </div>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Calculus II Notes
-          </p>
+      <div>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-[#2F80ED]" />
+          <h1 className="text-2xl font-bold">AI Summary</h1>
         </div>
-
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm">
-            <Copy className="h-4 w-4" />
-            Copy
-          </button>
-
-          <button className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm">
-            <Download className="h-4 w-4" />
-            Export
-          </button>
-        </div>
-
+        <p className="mt-1 text-sm text-slate-500">
+          {loading ? "Loading document..." : document ? title : "Document"}
+        </p>
       </div>
 
-      {/* Summary */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-
-        <h2 className="text-lg font-semibold">
-          Summary
-        </h2>
-
-        <div className="prose prose-slate mt-6 max-w-none dark:prose-invert">
-
-          <h3>Overview</h3>
-
-          <p>
-            This document introduces the fundamental concepts of
-            integration, techniques of integration, and applications
-            of definite integrals.
-          </p>
-
-          <h3>Key Concepts</h3>
-
-          <ul>
-            <li>Definite and indefinite integration</li>
-            <li>Integration by substitution</li>
-            <li>Integration by parts</li>
-            <li>Applications of integration</li>
-          </ul>
-
+      {loading && <p className="rounded-xl border border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-800">Loading document...</p>}
+      {!loading && error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
+      {document && !loading && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-semibold">Summary</h2>
+          <p className="mt-4 text-sm text-slate-500">A summary for <span className="font-medium text-slate-700 dark:text-slate-200">{title}</span> is not available yet.</p>
         </div>
-
-      </div>
-
+      )}
     </div>
   );
 }
