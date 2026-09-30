@@ -19,10 +19,55 @@ import {
 import Link from "next/link";
 import { RecentDocument } from "@/components/dashboard/recentDocument";
 import { useAppSelector } from "@/lib/redux/hooks";
+import { api } from "@/lib/api";
+import { useEffect, useState } from "react";
+
+interface Document {
+  _id: string;
+  title: string;
+  fileType: string;
+  originalName?: string;
+  pageCount?: number;
+  createdAt: string;
+}
 
 const DashboardPage = () => {
   const user = useAppSelector((state) => state.auth.user);
   const fullName = user?.fullName || "User";
+  const [recentDocuments, setRecentDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [documentsError, setDocumentsError] = useState("");
+
+  useEffect(() => {
+    const getDocuments = async () => {
+      try {
+        const response = await api.get("/document/get-documents");
+        const documents = response.data?.documents;
+
+        if (!Array.isArray(documents)) {
+          throw new Error("Unexpected get-documents response format");
+        }
+
+        setRecentDocuments(documents);
+      } catch (error) {
+        console.error("Failed to load dashboard documents:", error);
+        setDocumentsError("Could not load recent study materials.");
+      } finally {
+        setDocumentsLoading(false);
+      }
+    };
+
+    void getDocuments();
+  }, []);
+
+  const latestDocuments = [...recentDocuments]
+    .sort(
+      (first, second) =>
+        new Date(second.createdAt).getTime() -
+        new Date(first.createdAt).getTime(),
+    )
+    .slice(0, 4);
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
@@ -114,30 +159,24 @@ const DashboardPage = () => {
           </Link>
         </div>
         <div className="grid gap-4 mt-4">
-          <RecentDocument
-            title="maths"
-            type="docx"
-            pages={24}
-            description="last studied yesterday"
-          />
-          <RecentDocument
-            title="maths"
-            type="docx"
-            pages={24}
-            description="last studied yesterday"
-          />
-          <RecentDocument
-            title="maths"
-            type="docx"
-            pages={24}
-            description="last studied yesterday"
-          />
-          <RecentDocument
-            title="maths"
-            type="docx"
-            pages={24}
-            description="last studied yesterday"
-          />
+          {documentsLoading && (
+            <p className="text-sm text-slate-500">Loading documents...</p>
+          )}
+          {!documentsLoading && documentsError && (
+            <p className="text-sm text-red-600">{documentsError}</p>
+          )}
+          {!documentsLoading && !documentsError && latestDocuments.length === 0 && (
+            <p className="text-sm text-slate-500">No documents yet.</p>
+          )}
+          {!documentsLoading && !documentsError && latestDocuments.map((document) => (
+            <RecentDocument
+              key={document._id}
+              title={document.title || document.originalName || "Untitled document"}
+              type={document.originalName?.split(".").pop()?.toUpperCase() ?? document.fileType}
+              pages={document.pageCount}
+              description={`Uploaded ${new Date(document.createdAt).toLocaleDateString()}`}
+            />
+          ))}
         </div>
       </div>
 

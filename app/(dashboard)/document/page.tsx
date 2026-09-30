@@ -1,40 +1,16 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useDirection } from "@base-ui/react";
 import { FileText, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const documents = [
-  {
-    id: "calculus-ii",
-    title: "Calculus II Notes",
-    type: "PDF",
-    pages: 24,
-    lastStudied: "2 hours ago",
-  },
-  {
-    id: "digital-logic",
-    title: "Digital Logic Presentation",
-    type: "PPTX",
-    pages: 32,
-    lastStudied: "yesterday",
-  },
-  {
-    id: "organic-chemistry",
-    title: "Organic Chemistry Summary",
-    type: "DOCX",
-    pages: 11,
-    lastStudied: "3 days ago",
-  },
-];
-
 interface Document{
   _id: string,
   title:string,
-  fileType:string,
-  // pages:string,
+  fileType: string,
+  originalName?: string,
+  pageCount:number,
   createdAt:string;
 }
 
@@ -42,14 +18,21 @@ export default function DocumentsPage() {
   const [documents,setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("");
-
   useEffect(()=>{
     const getDocuments = async ()=>{
       try{
         setLoading(true)
         const response = await api.get("/document/get-documents")
+        const result = response.data?.documents
 
-        setDocuments(response.data.document)
+        if (!Array.isArray(result)) {
+          console.error("Unexpected get-documents response:", response.data)
+          setDocuments([])
+          setError("The documents response was not in the expected format.")
+          return
+        }
+
+        setDocuments(result)
       }catch (error) {
         console.error("Failed to fetch documents:", error);
 
@@ -58,7 +41,8 @@ export default function DocumentsPage() {
         setLoading(false);
       }
     }
-  })
+    getDocuments()
+  },[])
 
   return (
     <div className="space-y-8">
@@ -153,7 +137,8 @@ function DocumentCard({
     _id: string;
     title: string;
     fileType: string;
-    // pages: number
+    originalName?: string;
+    pageCount: number
   };
 }) {
   return (
@@ -169,8 +154,7 @@ function DocumentCard({
           </h3>
 
           <p className="mt-1 text-sm text-slate-500">
-            {document.fileType} · 
-            {/* {document.pages} pages */}
+            {document.originalName?.split(".").pop()?.toUpperCase() ?? document.fileType} . {document.pageCount} pages
           </p>
         </div>
 

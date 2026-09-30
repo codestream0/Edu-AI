@@ -3,7 +3,7 @@ import { FileText } from "lucide-react"
 interface recentDocumentProps{
     title:string;
     type:string;
-    pages:number;
+    pages?:number;
     description:string;
 }
 
@@ -14,7 +14,9 @@ export const RecentDocument = ({title,type,pages,description}:recentDocumentProp
                 <button  className=" h-5 w-3 text-slate-500"><FileText /></button>
                 <div >
                     <p className=" text-lg font-semibold text-[14px] text-slate-900 dark:text-white" >{title}</p>
-                    <p className="text-slate-700 text-[13px] dark:text-slate-400 ">{type}.{pages} pages</p>
+                    <p className="text-slate-700 text-[13px] dark:text-slate-400 ">
+                        {type}{pages != null ? ` · ${pages} pages` : ""}
+                    </p>
                     <p className="text-slate-700 text-[13px] dark:text-slate-400  ">{description}</p>
                 </div>
             </div>
