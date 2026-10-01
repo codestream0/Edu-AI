@@ -21,6 +21,7 @@ export default function UploadDocumentPage() {
     formData.append("title", file.name);
 
     try {
+      setError("")
       const response = await api.post("/document/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -29,7 +30,7 @@ export default function UploadDocumentPage() {
       setSuccess("document uploaded successfully!!!")
     } catch (error) {
       console.error("File upload error:", error);
-      setError("Failed to upload document.");
+      setError("Failed to upload document, Only PDF, DOCX, and PPTX files are allowed.");
     }
   }
 
