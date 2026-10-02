@@ -1,15 +1,11 @@
+
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
-
 import Link from "next/link";
-
 import { useParams } from "next/navigation";
-
 import ReactMarkdown from "react-markdown";
-
 import remarkGfm from "remark-gfm";
 
 import { api } from "@/lib/api";
@@ -19,210 +15,153 @@ interface Document {
   title?: string;
   originalName?: string;
   summary?: string;
-  extractedText?: string;
-
   status?: "uploaded" | "processing" | "completed" | "failed";
+  pageCount?: number | null;
+  processingPage?: number;
+  processingProgress?: number;
 }
 
 export default function DocumentSummaryPage() {
   const { id } = useParams<{ id: string }>();
 
   const [document, setDocument] = useState<Document | null>(null);
-
   const [loading, setLoading] = useState(true);
-
   const [error, setError] = useState("");
-
   const [summary, setSummary] = useState("");
-
   const [generating, setGenerating] = useState(false);
-
   const [processing, setProcessing] = useState(false);
 
   const summaryRequestInFlight = useRef(false);
-
-  const processingPollRef = useRef<NodeJS.Timeout | null>(null);
-
-  /*
-  |--------------------------------------------------------------------------
-  | Load document
-  |--------------------------------------------------------------------------
-  */
-
-  const loadDocument = async () => {
-    try {
-      const response = await api.get("/document/get-documents");
-
-      const documents = response.data?.documents;
-
-      if (!Array.isArray(documents)) {
-        throw new Error("Unexpected documents response");
-      }
-
-      const selected = documents.find(
-        (item: Document) => String(item._id) === String(id),
-      );
-
-      if (!selected) {
-        throw new Error("This document could not be found.");
-      }
-
-      setDocument(selected);
-
-      if (selected.summary?.trim()) {
-        setSummary(selected.summary.trim());
-      }
-
-      return selected;
-    } catch (error) {
-      console.error("Failed to load document:", error);
-
-      throw error;
-    }
-  };
+  const processingPollRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   /*
-  |--------------------------------------------------------------------------
-  | Generate summary
-  |--------------------------------------------------------------------------
-  */
+   * Load one document.
+   */
+  const loadDocument = useCallback(async (): Promise<Document> => {
+    const response = await api.get(
+      `/document/${encodeURIComponent(id)}`,
+    );
 
-  const generateDocumentSummary = async () => {
-    if (summaryRequestInFlight.current) {
-      return;
+    const selected: Document | undefined = response.data?.document;
+
+    if (!selected) {
+      throw new Error("This document could not be found.");
     }
 
-    if (!id) {
-      setError("Document ID is missing.");
+    setDocument(selected);
+    setSummary(selected.summary?.trim() ?? "");
 
-      return;
-    }
-
-    summaryRequestInFlight.current = true;
-
-    setGenerating(true);
-    setError("");
-
-    try {
-      const response = await api.post(
-        `/document/${encodeURIComponent(id)}/summary`,
-      );
-
-      const generatedSummary = response.data?.summary;
-
-      if (typeof generatedSummary !== "string" || !generatedSummary.trim()) {
-        throw new Error("The backend did not return a summary.");
-      }
-
-      const cleanSummary = generatedSummary.trim();
-
-      setSummary(cleanSummary);
-
-      setDocument((current) =>
-        current
-          ? {
-              ...current,
-              summary: cleanSummary,
-            }
-          : current,
-      );
-    } catch (generationError: any) {
-      console.error(
-        "Failed to generate document summary:",
-        generationError.response?.data || generationError,
-      );
-
-      setError(
-        generationError.response?.data?.message ||
-          "Failed to generate a summary. Please try again.",
-      );
-    } finally {
-      summaryRequestInFlight.current = false;
-
-      setGenerating(false);
-    }
-  };
+    return selected;
+  }, [id]);
 
   /*
-  |--------------------------------------------------------------------------
-  | Wait for document processing
-  |--------------------------------------------------------------------------
-  */
+   * Generate a summary or force regeneration.
+   */
+  const generateDocumentSummary = useCallback(
+    async (regenerate = false) => {
+      if (summaryRequestInFlight.current) return;
 
-  const waitForDocumentProcessing = async () => {
-    if (!id) {
-      return;
-    }
+      summaryRequestInFlight.current = true;
 
+      try {
+        setGenerating(true);
+        setError("");
+
+        const endpoint = `/document/${encodeURIComponent(id)}/summary`;
+
+        const response = await api.post(
+          regenerate ? `${endpoint}?regenerate=true` : endpoint,
+        );
+
+        const newSummary: string | undefined = response.data?.summary;
+
+        if (!newSummary?.trim()) {
+          throw new Error("The server did not return a summary.");
+        }
+
+        setSummary(newSummary);
+        setDocument((previous) =>
+          previous ? { ...previous, summary: newSummary } : previous,
+        );
+      } catch (err: unknown) {
+        console.error("Summary generation failed:", err);
+
+        let message = "Failed to generate summary. Please try again.";
+
+        if (err && typeof err === "object" && "response" in err) {
+          const apiError = err as {
+            response?: { data?: { message?: string } };
+            message?: string;
+          };
+
+          message =
+            apiError.response?.data?.message ||
+            apiError.message ||
+            message;
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+
+        setError(message);
+      } finally {
+        summaryRequestInFlight.current = false;
+        setGenerating(false);
+      }
+    },
+    [id],
+  );
+
+  /*
+   * Poll while the document is being uploaded or processed.
+   */
+  const waitForDocumentProcessing = useCallback(async () => {
     setProcessing(true);
-    setGenerating(true);
     setError("");
 
-    const poll = async () => {
+    const poll = async (): Promise<void> => {
       try {
         const selected = await loadDocument();
 
-        /*
-         * OCR is still running.
-         */
-        if (selected.status === "processing") {
-          processingPollRef.current = setTimeout(poll, 2000);
-
-          return;
-        }
-
-        /*
-         * Document processing failed.
-         */
         if (selected.status === "failed") {
           setProcessing(false);
-          setGenerating(false);
-
           setError(
             "Document processing failed. Please try uploading the document again.",
           );
+          return;
+        }
+
+        if (
+          selected.status === "uploaded" ||
+          selected.status === "processing"
+        ) {
+          processingPollRef.current = setTimeout(() => {
+            void poll();
+          }, 2000);
 
           return;
         }
 
-        /*
-         * Document processing completed.
-         */
         if (selected.status === "completed") {
           setProcessing(false);
 
-          /*
-           * If a summary already exists,
-           * use it instead of generating again.
-           */
+          // Reuse the cached summary if one already exists.
           if (selected.summary?.trim()) {
-            setSummary(selected.summary.trim());
-
-            setGenerating(false);
-
             return;
           }
 
-          /*
-           * OCR is finished.
-           * Now generate the AI summary.
-           */
+          // OCR has completed, so summary generation can begin.
           await generateDocumentSummary();
-
           return;
         }
 
-        /*
-         * Uploaded but not yet processing.
-         * Check again shortly.
-         */
-        processingPollRef.current = setTimeout(poll, 2000);
-      } catch (error) {
-        console.error("Document processing polling error:", error);
+        setProcessing(false);
+        setError("The document has an unknown processing status.");
+      } catch (err) {
+        console.error("Document processing polling error:", err);
 
         setProcessing(false);
-        setGenerating(false);
-
         setError(
           "Failed to check document processing status. Please try again.",
         );
@@ -230,14 +169,11 @@ export default function DocumentSummaryPage() {
     };
 
     await poll();
-  };
+  }, [loadDocument, generateDocumentSummary]);
 
   /*
-  |--------------------------------------------------------------------------
-  | Initial document load
-  |--------------------------------------------------------------------------
-  */
-
+   * Initialize the page.
+   */
   useEffect(() => {
     let active = true;
 
@@ -246,46 +182,43 @@ export default function DocumentSummaryPage() {
       setError("");
       setDocument(null);
       setSummary("");
+      setProcessing(false);
 
       try {
         const selected = await loadDocument();
 
-        if (!active) {
-          return;
-        }
+        if (!active) return;
 
-        /*
-         * Document is still being OCR processed.
-         */
-        if (selected.status === "processing") {
-          await waitForDocumentProcessing();
-
-          return;
-        }
-
-        /*
-         * Document processing failed.
-         */
         if (selected.status === "failed") {
           setError(
             "Document processing failed. Please upload the document again.",
           );
-
           return;
         }
 
-        /*
-         * Document is already completed
-         * and has no summary.
-         */
-        if (selected.status === "completed" && !selected.summary?.trim()) {
+        if (
+          selected.status === "uploaded" ||
+          selected.status === "processing"
+        ) {
+          setProcessing(true);
+          await waitForDocumentProcessing();
           return;
         }
-      } catch (error) {
-        console.error("Failed to initialize summary page:", error);
+
+        if (selected.status === "completed") {
+          if (!selected.summary?.trim()) {
+            await generateDocumentSummary();
+          }
+        }
+      } catch (err) {
+        console.error("Failed to initialize summary page:", err);
 
         if (active) {
-          setError("Failed to load this document. Please try again.");
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Failed to load this document. Please try again.",
+          );
         }
       } finally {
         if (active) {
@@ -303,26 +236,13 @@ export default function DocumentSummaryPage() {
         clearTimeout(processingPollRef.current);
       }
     };
-  }, [id]);
-
-  /*
-  |--------------------------------------------------------------------------
-  | Cleanup polling
-  |--------------------------------------------------------------------------
-  */
-
-  useEffect(() => {
-    return () => {
-      if (processingPollRef.current) {
-        clearTimeout(processingPollRef.current);
-      }
-    };
-  }, []);
+  }, [id, loadDocument, waitForDocumentProcessing, generateDocumentSummary]);
 
   const title =
     document?.title || document?.originalName || "Untitled document";
 
-  const isProcessing = processing || document?.status === "processing";
+  const isProcessing = processing || document?.status === "processing" ||
+    document?.status === "uploaded";
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -337,7 +257,6 @@ export default function DocumentSummaryPage() {
       <div>
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-[#2F80ED]" />
-
           <h1 className="text-2xl font-bold">AI Summary</h1>
         </div>
 
@@ -348,7 +267,10 @@ export default function DocumentSummaryPage() {
 
       {loading && (
         <div className="rounded-xl border border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-800">
-          Loading document...
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading document...
+          </div>
         </div>
       )}
 
@@ -363,11 +285,9 @@ export default function DocumentSummaryPage() {
 
       {document && !loading && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-          {/* Summary header */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold">Summary</h2>
-
               <p className="mt-1 text-sm text-slate-500">
                 A concise overview of {title}.
               </p>
@@ -375,11 +295,17 @@ export default function DocumentSummaryPage() {
 
             <button
               type="button"
-              onClick={() => void generateDocumentSummary()}
-              disabled={generating || isProcessing}
+              onClick={() =>
+                void generateDocumentSummary(Boolean(summary))
+              }
+              disabled={
+                generating ||
+                isProcessing ||
+                document.status !== "completed"
+              }
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2F80ED] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {generating ? (
+              {generating || isProcessing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Sparkles className="h-4 w-4" />
@@ -407,11 +333,18 @@ export default function DocumentSummaryPage() {
                   <p className="font-medium">
                     EDU AI is processing your document...
                   </p>
-
                   <p className="mt-1 text-blue-600/80 dark:text-blue-300/80">
-                    We're extracting text from your document. This may take a
-                    moment for large documents.
+                    We&apos;re extracting text from your document. This may
+                    take a while for large documents.
                   </p>
+
+                  {document.pageCount && document.processingPage !== undefined && (
+                    <p className="mt-2 text-xs">
+                      Page {document.processingPage} of {document.pageCount}
+                      {document.processingProgress !== undefined &&
+                        ` · ${document.processingProgress}% complete`}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -424,12 +357,10 @@ export default function DocumentSummaryPage() {
             >
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin" />
-
                 <div>
                   <p className="font-medium">
                     EDU AI is analyzing your document...
                   </p>
-
                   <p className="mt-1 text-blue-600/80 dark:text-blue-300/80">
                     This may take a moment.
                   </p>
@@ -448,12 +379,10 @@ export default function DocumentSummaryPage() {
             </div>
           )}
 
-          {!summary && !generating && !isProcessing && (
+          {!summary && !generating && !isProcessing && !error && (
             <div className="mt-6 rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
               <Sparkles className="mx-auto h-8 w-8 text-[#2F80ED]" />
-
               <h3 className="mt-3 font-semibold">No summary yet</h3>
-
               <p className="mt-1 text-sm text-slate-500">
                 Let EDU AI analyze this document and create a study-friendly
                 summary.
