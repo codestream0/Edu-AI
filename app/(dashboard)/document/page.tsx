@@ -31,7 +31,7 @@ export default function DocumentsPage() {
           setError("The documents response was not in the expected format.")
           return
         }
-
+        
         setDocuments(result)
       }catch (error) {
         console.error("Failed to fetch documents:", error);

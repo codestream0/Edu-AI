@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, GraduationCap, X } from "lucide-react";
 
 import {
   mainNavigation,
@@ -57,22 +57,16 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           }
         `}
       >
-
         <div className="flex h-20 items-center justify-between px-4">
           <div
             className={`flex items-center ${
-              open
-                ? "gap-3"
-                : "w-full justify-center"
+              open ? "gap-3" : "w-full justify-center"
             }`}
           >
-            <Image
-              src="/logo.png"
-              alt="EDU AI Logo"
-              width={45}
-              height={45}
-              className="h-auto w-11.25 shrink-0"
-            />
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-500/20">
+              <GraduationCap size={27} />
+            </div>
 
             {open && (
               <span
@@ -108,7 +102,6 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
         </div>
 
         <div className="flex h-[calc(100vh-80px)] flex-col px-3">
-          
           {/* Main navigation */}
           <nav className="space-y-1">
             {mainNavigation.map((item) => (
@@ -220,7 +213,8 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                       dark:text-slate-100
                     "
                   >
-                    {fullName.split(" ",2)[0].charAt(0).toLowerCase() + fullName.split(" ",2)[0].slice(1)}
+                    {fullName.split(" ", 2)[0].charAt(0).toLowerCase() +
+                      fullName.split(" ", 2)[0].slice(1)}
                   </p>
 
                   <p
