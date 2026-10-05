@@ -73,7 +73,7 @@ const LoginPage = () => {
 
           <div className="pointer-events-none absolute -right-20 bottom-10 h-96 w-96 rounded-full bg-indigo-300/40 blur-3xl" />
 
-          <div className="pointer-events-none absolute right-16 top-24 h-32 w-32 rounded-full border-2 border-blue-400/30" />
+          {/* <div className="pointer-events-none absolute right-16 top-24 h-32 w-32 rounded-full border-2 border-blue-400/30" /> */}
 
           <Link
             href="/"

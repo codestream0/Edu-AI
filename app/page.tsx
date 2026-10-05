@@ -11,6 +11,7 @@ import {
   Check,
   FileText,
   Flame,
+  GraduationCap,
   Menu,
   MessageCircle,
   Play,
@@ -30,11 +31,10 @@ export default function Home() {
       ========================================================= */}
       <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/80">
         <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EAF3FF]">
-              <Image src="/logo.png" alt="Logo" width={40} height={40} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#2F80ED] text-white shadow-blue-200">
+              <GraduationCap className="h-6 w-6" />
             </div>
 
             <span className="text-xl font-bold tracking-tight">
@@ -250,7 +250,6 @@ export default function Home() {
             <div className="absolute -inset-4 -z-10 rounded-4xl bg-blue-500/10 blur-2xl" />
 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-2xl shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900">
-              
               {/* Browser bar */}
               <div className="flex h-12 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
                 <div className="h-3 w-3 rounded-full bg-slate-300 dark:bg-slate-700" />
@@ -342,9 +341,7 @@ export default function Home() {
                           <p className="mt-3 text-xs text-slate-500">
                             {stat.title}
                           </p>
-                          <p className="mt-1 text-lg font-bold">
-                            {stat.value}
-                          </p>
+                          <p className="mt-1 text-lg font-bold">{stat.value}</p>
                         </div>
                       );
                     })}
@@ -422,8 +419,8 @@ export default function Home() {
             </h2>
 
             <p className="mt-4 text-slate-600 dark:text-slate-400">
-              From understanding difficult concepts to preparing for exams,
-              EDU AI gives you the tools to learn more effectively.
+              From understanding difficult concepts to preparing for exams, EDU
+              AI gives you the tools to learn more effectively.
             </p>
           </div>
 
@@ -518,7 +515,6 @@ export default function Home() {
         className="scroll-mt-24 px-4 py-24 sm:px-6 lg:px-8"
       >
         <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-2">
-          
           <div>
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40">
               <Sparkles className="h-6 w-6 text-[#2F80ED]" />
@@ -533,9 +529,9 @@ export default function Home() {
             </h2>
 
             <p className="mt-5 leading-7 text-slate-600 dark:text-slate-400">
-              Ask EDU AI anything about your course. Get explanations that
-              match your level of understanding, ask follow-up questions and
-              explore concepts until everything makes sense.
+              Ask EDU AI anything about your course. Get explanations that match
+              your level of understanding, ask follow-up questions and explore
+              concepts until everything makes sense.
             </p>
 
             <div className="mt-7 space-y-3">
@@ -619,7 +615,6 @@ export default function Home() {
         className="scroll-mt-24 bg-slate-950 px-4 py-24 text-white sm:px-6 lg:px-8"
       >
         <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-2">
-          
           <div className="order-2 lg:order-1">
             <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 shadow-2xl">
               <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6">
@@ -659,16 +654,12 @@ export default function Home() {
                 <div className="mt-7 grid grid-cols-2 gap-3">
                   <div className="rounded-xl bg-slate-900 p-4">
                     <Sparkles className="h-4 w-4 text-blue-400" />
-                    <p className="mt-2 text-xs text-slate-400">
-                      AI Summary
-                    </p>
+                    <p className="mt-2 text-xs text-slate-400">AI Summary</p>
                   </div>
 
                   <div className="rounded-xl bg-slate-900 p-4">
                     <Brain className="h-4 w-4 text-purple-400" />
-                    <p className="mt-2 text-xs text-slate-400">
-                      Generate Quiz
-                    </p>
+                    <p className="mt-2 text-xs text-slate-400">Generate Quiz</p>
                   </div>
                 </div>
               </div>
@@ -726,10 +717,7 @@ export default function Home() {
       {/* =========================================================
           QUIZZES
       ========================================================= */}
-      <section
-        id="quizzes"
-        className="scroll-mt-24 px-4 py-24 sm:px-6 lg:px-8"
-      >
+      <section id="quizzes" className="scroll-mt-24 px-4 py-24 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-2">
           <div>
             <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40">
@@ -840,11 +828,7 @@ export default function Home() {
               label="Average score"
             />
 
-            <ProgressCard
-              icon={<Flame />}
-              value="7"
-              label="Day study streak"
-            />
+            <ProgressCard icon={<Flame />} value="7" label="Day study streak" />
           </div>
         </div>
       </section>
@@ -888,7 +872,7 @@ export default function Home() {
               <Link href="/" className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EAF3FF]">
                   {/* <Sparkles className="h-4 w-4 text-[#2F80ED]" /> */}
-                  <Image src="/logo.png" alt="LOgo" height={40} width={40}  />
+                  <Image src="/logo.png" alt="LOgo" height={40} width={40} />
                 </div>
 
                 <span className="font-bold">
