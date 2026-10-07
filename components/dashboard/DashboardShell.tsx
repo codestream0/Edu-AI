@@ -26,7 +26,7 @@ export function DashboardShell({
           min-h-screen
           transition-all
           duration-300
-          ${sidebarOpen ? "ml-64" : "ml-[72px]"}
+          ${sidebarOpen ? "ml-64" : "ml-18"}
         `}
       >
         {/* Fixed Topbar */}

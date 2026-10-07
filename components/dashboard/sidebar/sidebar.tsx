@@ -55,7 +55,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           dark:border-slate-800
           dark:bg-slate-950
 
-          ${open ? "w-64" : "w-[72px]"}
+          ${open ? "w-64" : "w-18"}
         `}
       >
         {/* Header */}
