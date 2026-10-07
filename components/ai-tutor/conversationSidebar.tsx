@@ -24,7 +24,7 @@ export function ConversationSidebar({
   onDeleteConversation,
 }: ConversationSidebarProps) {
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
+    <aside className=" flex h-full w-full shrink-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 md:w-64">
       {/* Header */}
       <div className="border-b border-slate-200 p-4 dark:border-slate-800">
         <button
@@ -58,8 +58,7 @@ export function ConversationSidebar({
         ) : (
           <div className="space-y-1">
             {conversations.map((conversation) => {
-              const isActive =
-                activeConversationId === conversation._id;
+              const isActive = activeConversationId === conversation._id;
 
               return (
                 <div
@@ -72,9 +71,7 @@ export function ConversationSidebar({
                 >
                   <button
                     type="button"
-                    onClick={() =>
-                      onSelectConversation(conversation._id)
-                    }
+                    onClick={() => onSelectConversation(conversation._id)}
                     className="min-w-0 flex-1 px-3 py-2.5 text-left"
                   >
                     <p className="truncate text-sm font-medium">
@@ -82,17 +79,13 @@ export function ConversationSidebar({
                     </p>
 
                     <p className="mt-0.5 text-xs text-slate-400">
-                      {new Date(
-                        conversation.updatedAt,
-                      ).toLocaleDateString()}
+                      {new Date(conversation.updatedAt).toLocaleDateString()}
                     </p>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      onDeleteConversation(conversation._id)
-                    }
+                    onClick={() => onDeleteConversation(conversation._id)}
                     className="mr-1 rounded-md p-1.5 text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-950/40"
                     title="Delete conversation"
                   >

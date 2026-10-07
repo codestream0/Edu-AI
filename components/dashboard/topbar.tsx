@@ -3,9 +3,9 @@
 import { Menu, Bell, Search, LogOut } from "lucide-react";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { ThemeToggle } from "./themetoggle";
-import {logout} from "@/lib/redux/features/auth/authSlice";
-import {useAppDispatch} from "@/lib/redux/hooks"
-import {useRouter} from "next/navigation"
+import { logout } from "@/lib/redux/features/auth/authSlice";
+import { useAppDispatch } from "@/lib/redux/hooks";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface TopbarProps {
@@ -14,21 +14,21 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const user = useAppSelector((state) => state.auth.user);
-  console.log(user?.fullName || "user")
+  console.log(user?.fullName || "user");
   const fullName = user?.fullName || "User";
-  const dispatch = useAppDispatch()
-  const router = useRouter()
+  const dispatch = useAppDispatch();
+  const router = useRouter();
 
   const handleLogout = async () => {
-    try{
-      await api.post("/auth/logout")
-    }catch(error) {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
       console.log("Logout failed:", error);
-    }finally {
-      dispatch(logout())
-      router.replace("/login")
+    } finally {
+      dispatch(logout());
+      router.replace("/login");
     }
-  }
+  };
   return (
     <header
       className="
@@ -130,51 +130,56 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <ThemeToggle />
 
         <button
+          onClick={handleLogout}
           type="button"
-          aria-label="Notifications"
+          aria-label="Logout"
           className="
+            group
             relative
+            flex
+            h-10
+            w-10
+            items-center
+            justify-center
             rounded-lg
-            p-2
             text-slate-700
             transition-colors
-            hover:bg-slate-100
-
+            hover:bg-red-50
+            hover:text-red-500
             dark:text-slate-300
-            dark:hover:bg-slate-800
+            dark:hover:bg-red-950/40
+            dark:hover:text-red-400
           "
         >
-          <Bell className="h-5 w-5" />
+          <LogOut className="h-5 w-5" />
 
           <span
             className="
+              pointer-events-none
               absolute
-              right-1.5
-              top-1.5
-              h-1.5
-              w-1.5
-              rounded-full
-              bg-[#2F80ED]
+              right-0
+              top-full
+              z-50
+              mt-2
+              whitespace-nowrap
+              rounded-md
+              bg-slate-900
+              px-2.5
+              py-1.5
+              text-xs
+              font-medium
+              text-white
+              opacity-0
+              shadow-lg
+              transition-opacity
+              duration-200
+              group-hover:opacity-100
+              dark:bg-white
+              dark:text-slate-900
             "
-          />
-        </button>
-        <button
-          onClick={handleLogout}
-          type="button"
-          aria-label="Notifications"
-          className="
-            relative
-            rounded-lg
-            p-2
-            text-slate-700
-            transition-colors
-            hover:bg-slate-100
-
-            dark:text-slate-300
-            dark:hover:bg-slate-800
-          "
-        >
-          <LogOut />
+          >
+            Logout
+          </span>
         </button>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -201,7 +206,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
           <div className="hidden lg:block">
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {fullName.split(" ",2)[0].charAt(0).toUpperCase() + fullName.split(" ",2)[0].slice(1)}
+              {fullName.split(" ", 2)[0].charAt(0).toUpperCase() +
+                fullName.split(" ", 2)[0].slice(1)}
             </p>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">

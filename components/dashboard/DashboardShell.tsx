@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-
 import { Sidebar } from "@/components/dashboard/sidebar/sidebar";
 import { Topbar } from "./topbar";
 
@@ -14,13 +13,11 @@ export function DashboardShell({
 
   return (
     <div className="min-h-screen bg-[#F5F9FF] dark:bg-slate-900">
-      {/* Sidebar */}
       <Sidebar
         open={sidebarOpen}
         onToggle={() => setSidebarOpen((prev) => !prev)}
       />
 
-      {/* Main application area */}
       <div
         className={`
           min-h-screen
@@ -43,14 +40,12 @@ export function DashboardShell({
           `}
         >
           <Topbar
-            onMenuClick={() =>
-              setSidebarOpen((prev) => !prev)
-            }
+            onMenuClick={() => setSidebarOpen((prev) => !prev)}
           />
         </div>
 
-        {/* Scrollable page content */}
-        <main className="h-screen overflow-y-auto pt-20 p-4 sm:p-6">
+        {/* Page content */}
+        <main className="h-screen overflow-y-auto px-4 pb-6 pt-24 sm:px-6 sm:pt-24">
           {children}
         </main>
       </div>

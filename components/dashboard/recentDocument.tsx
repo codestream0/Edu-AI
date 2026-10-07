@@ -9,7 +9,7 @@ interface recentDocumentProps{
 
 export const RecentDocument = ({title,type,pages,description}:recentDocumentProps)=>{
     return (
-        <div className=" rounded-xl  min-w-100  bg-slate-50 p-6 border border-gray-300 dark:bg-slate-800 dark:border-gray-800 " >
+        <div className=" rounded-xl  min-w-100  bg-gray-100 p-6 border border-gray-300 dark:bg-slate-800 dark:border-gray-800 " >
             <div className="flex gap-6 items-center" >
                 <button  className=" h-5 w-3 text-slate-500"><FileText /></button>
                 <div >

@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
+
+import {
+  Menu,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 import { SuggestedPrompts } from "@/components/ai-tutor/suggestedPrompt";
 import { TutorInput } from "@/components/ai-tutor/tutorInput";
@@ -27,6 +32,10 @@ const AITutorPage = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+
+  // Mobile conversation drawer
+  const [conversationSidebarOpen, setConversationSidebarOpen] =
+    useState(false);
 
   /*
    * Load conversations when the AI Tutor page opens
@@ -79,8 +88,7 @@ const AITutorPage = () => {
       ]);
 
       /*
-       * Refresh the conversation sidebar so the newly
-       * created/updated conversation appears there.
+       * Refresh conversation list.
        */
       const updatedConversations = await getConversations();
       setConversations(updatedConversations);
@@ -105,17 +113,19 @@ const AITutorPage = () => {
     setConversationId(null);
     setMessages([]);
     setInput("");
+
+    // Close mobile drawer
+    setConversationSidebarOpen(false);
   };
 
   /*
    * Load an existing conversation.
    */
   const handleSelectConversation = async (id: string) => {
-    /*
-     * Don't reload the conversation the user is
-     * already viewing.
-     */
-    if (id === conversationId) return;
+    if (id === conversationId) {
+      setConversationSidebarOpen(false);
+      return;
+    }
 
     try {
       setIsLoadingConversation(true);
@@ -125,6 +135,9 @@ const AITutorPage = () => {
       setConversationId(data.conversation._id);
       setMessages(data.messages);
       setInput("");
+
+      // Close mobile drawer after selecting chat
+      setConversationSidebarOpen(false);
     } catch (error) {
       console.error("Failed to load conversation:", error);
     } finally {
@@ -139,17 +152,12 @@ const AITutorPage = () => {
     try {
       await deleteConversation(id);
 
-      /*
-       * Remove it from the sidebar immediately.
-       */
       setConversations((currentConversations) =>
-        currentConversations.filter((conversation) => conversation._id !== id),
+        currentConversations.filter(
+          (conversation) => conversation._id !== id,
+        ),
       );
 
-      /*
-       * If the deleted conversation is currently open,
-       * clear the chat area.
-       */
       if (conversationId === id) {
         setConversationId(null);
         setMessages([]);
@@ -161,28 +169,108 @@ const AITutorPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-140px)] overflow-hidden rounded-2xl mt-20 border bg-white dark:bg-slate-950">
-      <ConversationSidebar
-        conversations={conversations}
-        activeConversationId={conversationId}
-        onNewConversation={handleNewConversation}
-        onSelectConversation={handleSelectConversation}
-        onDeleteConversation={handleDeleteConversation}
-      />
+    <div className="relative flex h-[calc(100vh-140px)] min-h-0 overflow-hidden rounded-2xl border bg-white dark:bg-slate-950">
 
-      {/* Main AI Tutor Area */}
+      {conversationSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setConversationSidebarOpen(false)}
+        />
+      )}
+
+
+      <div
+        className={`
+          fixed
+          inset-y-0
+          left-0
+          z-50
+          w-72
+          transition-transform
+          duration-300
+          md:relative
+          md:z-auto
+          md:w-64
+          md:translate-x-0
+          ${
+            conversationSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full"
+          }
+        `}
+      >
+        <div className="relative h-full">
+          <ConversationSidebar
+            conversations={conversations}
+            activeConversationId={conversationId}
+            onNewConversation={handleNewConversation}
+            onSelectConversation={handleSelectConversation}
+            onDeleteConversation={handleDeleteConversation}
+          />
+
+          {/* Mobile close button */}
+          <button
+            type="button"
+            onClick={() => setConversationSidebarOpen(false)}
+            className="
+              absolute
+              right-3
+              top-3
+              rounded-lg
+              p-2
+              text-slate-500
+              hover:bg-slate-100
+              dark:text-slate-400
+              dark:hover:bg-slate-800
+              md:hidden
+            "
+            aria-label="Close conversations"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* =========================================================
+          MAIN AI TUTOR AREA
+          ========================================================= */}
       <div className="flex min-w-0 flex-1 flex-col">
+
         {/* Header */}
-        <div className="shrink-0 border-b p-5">
+        <div className="shrink-0 border-b px-4 py-4 sm:p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-950">
+
+            {/* Mobile conversation menu */}
+            <button
+              type="button"
+              onClick={() =>
+                setConversationSidebarOpen(true)
+              }
+              className="
+                rounded-lg
+                p-2
+                text-slate-500
+                transition
+                hover:bg-slate-100
+                dark:text-slate-400
+                dark:hover:bg-slate-800
+                md:hidden
+              "
+              aria-label="Open conversations"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-950">
               <Sparkles className="h-5 w-5 text-[#2F80ED]" />
             </div>
 
-            <div>
-              <h1 className="font-semibold">AI Tutor</h1>
+            <div className="min-w-0">
+              <h1 className="font-semibold">
+                AI Tutor
+              </h1>
 
-              <p className="text-sm text-slate-500">
+              <p className="truncate text-sm text-slate-500">
                 Your personalized learning assistant
               </p>
             </div>
@@ -199,24 +287,32 @@ const AITutorPage = () => {
               </div>
             </div>
           ) : (
-            <TutorMessages messages={messages} isLoading={isLoading} />
+            <TutorMessages
+              messages={messages}
+              isLoading={isLoading}
+            />
           )}
         </div>
 
         {/* Suggested Prompts */}
-        {messages.length === 0 && !isLoading && !isLoadingConversation && (
-          <div className="shrink-0">
-            <SuggestedPrompts onPromptClick={handlePromptClick} />
-          </div>
-        )}
+        {messages.length === 0 &&
+          !isLoading &&
+          !isLoadingConversation && (
+            <div className="shrink-0">
+              <SuggestedPrompts
+                onPromptClick={handlePromptClick}
+              />
+            </div>
+          )}
 
-        {/* Input */}
-        <div className="shrink-0 border-t p-4">
+        <div className="shrink-0 border-t p-3 sm:p-4">
           <TutorInput
             value={input}
             onChange={setInput}
             onSend={handleSend}
-            disabled={isLoading || isLoadingConversation}
+            disabled={
+              isLoading || isLoadingConversation
+            }
           />
         </div>
       </div>

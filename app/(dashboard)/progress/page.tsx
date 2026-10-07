@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Activity,
-  AlertCircle,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
@@ -11,14 +10,11 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   ClipboardCheck,
   Code2,
   Database,
   Flame,
   Globe,
-  Lightbulb,
   Loader2,
   Monitor,
   Network,
@@ -38,7 +34,6 @@ import {
 } from "recharts";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { useEffect } from "react";
 
 type RecentQuiz = {
   _id?: string;
@@ -59,6 +54,13 @@ type RecentQuiz = {
     questionCount?: number;
   };
 };
+
+type StudyActivity = {
+  day: string;
+  date: string;
+  sessions: number;
+};
+
 type ProgressData = {
   documentsStudied: number;
   quizzesCompleted: number;
@@ -77,10 +79,7 @@ type ProgressData = {
     score: number;
   }[];
 
-  activity: {
-    day: string;
-    sessions: number;
-  }[];
+  activity: StudyActivity[];
 
   recentQuizzes: RecentQuiz[];
 };
@@ -92,15 +91,11 @@ const EMPTY_PROGRESS: ProgressData = {
   studyStreak: 0,
   weeklyChange: {},
   performance: [],
-  activity: [
-    { day: "Mon", sessions: 0 },
-    { day: "Tue", sessions: 0 },
-    { day: "Wed", sessions: 0 },
-    { day: "Thu", sessions: 0 },
-    { day: "Fri", sessions: 0 },
-    { day: "Sat", sessions: 0 },
-    { day: "Sun", sessions: 0 },
-  ],
+  activity: Array.from({ length: 7 }, (_, index) => ({
+    day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index],
+    date: "",
+    sessions: 0,
+  })),
   recentQuizzes: [],
 };
 
@@ -117,6 +112,21 @@ function formatDate(date: string) {
     month: "short",
     day: "numeric",
     year: "numeric",
+  });
+}
+
+function formatActivityDate(date: string) {
+  if (!date) return "";
+
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
   });
 }
 
@@ -149,7 +159,7 @@ function ProgressCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-slate-500 sm:text-sm">
+          <p className="truncate text-xs font-medium text-slate-500 sm:text-sm">
             {title}
           </p>
 
@@ -159,19 +169,26 @@ function ProgressCard({
 
           <div className="mt-2 flex min-h-4 items-center gap-1 text-xs">
             {change !== undefined && (
-              <span className={positive ? "text-emerald-600" : "text-red-500"}>
+              <span
+                className={
+                  positive ? "text-emerald-600" : "text-red-500"
+                }
+              >
                 {positive ? (
                   <ArrowUpRight className="inline h-3.5 w-3.5" />
                 ) : (
                   <ArrowDownRight className="inline h-3.5 w-3.5" />
                 )}
+
                 {positive ? "+" : ""}
                 {change}
                 {title === "Average quiz score" ? "%" : ""}
               </span>
             )}
 
-            <span className="truncate text-slate-400">{subtitle}</span>
+            <span className="truncate text-slate-400">
+              {subtitle}
+            </span>
           </div>
 
           {progress !== undefined && (
@@ -191,7 +208,9 @@ function ProgressCard({
 }
 
 export default function StudyProgressPage() {
-  const [progress, setProgress] = useState<ProgressData>(EMPTY_PROGRESS);
+  const [progress, setProgress] =
+    useState<ProgressData>(EMPTY_PROGRESS);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [period, setPeriod] = useState("7");
@@ -205,12 +224,19 @@ export default function StudyProgressPage() {
 
       try {
         const response = await api.get("/progress/get-progress");
-        const data = response.data?.progress ?? response.data;
+
+        const data =
+          response.data?.progress ?? response.data;
 
         if (!active) return;
 
+        /*
+         * Recent quiz attempts
+         */
         const recentQuizzes: RecentQuiz[] = (
-          Array.isArray(data.recentAttempts) ? data.recentAttempts : []
+          Array.isArray(data.recentAttempts)
+            ? data.recentAttempts
+            : []
         ).map((attempt: any) => ({
           id: attempt._id,
           title: attempt.quiz?.title ?? "Untitled quiz",
@@ -224,68 +250,90 @@ export default function StudyProgressPage() {
           questionCount: attempt.quiz?.questionCount,
         }));
 
+        /*
+         * Quiz performance
+         */
         const performance = (
-          Array.isArray(data.performance) ? data.performance : []
+          Array.isArray(data.performance)
+            ? data.performance
+            : []
         )
           .map((item: any) => ({
             date: item.date,
             score: Number(item.score ?? 0),
           }))
-          .filter((item: { date: string; score: number }) =>
-            Number.isFinite(new Date(item.date).getTime()),
+          .filter(
+            (item: { date: string; score: number }) =>
+              Number.isFinite(
+                new Date(item.date).getTime(),
+              ),
           )
           .sort(
-            (a: { date: string }, b: { date: string }) =>
-              new Date(a.date).getTime() - new Date(b.date).getTime(),
+            (
+              a: { date: string },
+              b: { date: string },
+            ) =>
+              new Date(a.date).getTime() -
+              new Date(b.date).getTime(),
           );
 
-        // Build the current week's activity from recorded quiz attempts.
-        const weekStart = new Date();
-        weekStart.setHours(0, 0, 0, 0);
-        const dayOfWeek = weekStart.getDay();
-        weekStart.setDate(
-          weekStart.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1),
-        );
+        /*
+         * Rolling 7-day study activity
+         *
+         * IMPORTANT:
+         * The backend now calculates this.
+         * Do NOT rebuild it from recentAttempts.
+         */
+        const activity: StudyActivity[] = (
+          Array.isArray(data.studyActivity)
+            ? data.studyActivity
+            : []
+        ).map((item: any) => ({
+          day: String(item.day ?? ""),
+          date: String(item.date ?? ""),
+          sessions: Number(item.sessions ?? 0),
+        }));
 
-        const activity = [
-          { day: "Mon", sessions: 0 },
-          { day: "Tue", sessions: 0 },
-          { day: "Wed", sessions: 0 },
-          { day: "Thu", sessions: 0 },
-          { day: "Fri", sessions: 0 },
-          { day: "Sat", sessions: 0 },
-          { day: "Sun", sessions: 0 },
-        ];
-
-        // recentAttempts contains only the latest five attempts.
-        // This is a useful temporary chart, not a complete activity history.
-        recentQuizzes.forEach((quiz) => {
-          if (!quiz.completedAt) return;
-
-          const completedDate = new Date(quiz.completedAt);
-          if (completedDate < weekStart) return;
-
-          const daysSinceMonday = (completedDate.getDay() + 6) % 7;
-
-          if (daysSinceMonday >= 0 && daysSinceMonday < 7) {
-            activity[daysSinceMonday].sessions += 1;
-          }
-        });
-
-        if (!active) return;
+        /*
+         * Make sure the chart always has seven entries.
+         */
+        const normalizedActivity: StudyActivity[] =
+          activity.length === 7
+            ? activity
+            : Array.from({ length: 7 }, (_, index) => ({
+                day:
+                  activity[index]?.day ??
+                  ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][
+                    index
+                  ],
+                date: activity[index]?.date ?? "",
+                sessions:
+                  activity[index]?.sessions ?? 0,
+              }));
 
         setProgress({
-          documentsStudied: Number(data.summary?.documentsStudied ?? 0),
-          quizzesCompleted: Number(data.summary?.quizzesCompleted ?? 0),
-          averageScore: Number(data.summary?.averageScore ?? 0),
-          studyStreak: Number(data.summary?.studyStreak ?? 0),
+          documentsStudied: Number(
+            data.summary?.documentsStudied ?? 0,
+          ),
+          quizzesCompleted: Number(
+            data.summary?.quizzesCompleted ?? 0,
+          ),
+          averageScore: Number(
+            data.summary?.averageScore ?? 0,
+          ),
+          studyStreak: Number(
+            data.summary?.studyStreak ?? 0,
+          ),
           performance,
           recentQuizzes,
-          activity,
+          activity: normalizedActivity,
           weeklyChange: {},
         });
       } catch (err) {
-        console.error("Failed to load study progress:", err);
+        console.error(
+          "Failed to load study progress:",
+          err,
+        );
 
         if (active) {
           setError(
@@ -293,7 +341,9 @@ export default function StudyProgressPage() {
           );
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
@@ -307,23 +357,26 @@ export default function StudyProgressPage() {
   const performanceData = useMemo(() => {
     const count = Number(period);
 
-    if (count === 0) return progress.performance;
+    if (count === 0) {
+      return progress.performance;
+    }
 
     return progress.performance.slice(-count);
   }, [progress.performance, period]);
 
   return (
-    <div className="min-h-full space-y-6  p-4  sm:p-6 lg:p-7">
+    <div className="min-h-full space-y-6 p-4 sm:p-6 lg:p-7">
       {/* Page heading */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <BarChart3 className="mt-0.5 h-8 w-8 text-[#2F80ED]" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <BarChart3 className="mt-0.5 h-7 w-7 shrink-0 text-[#2F80ED] sm:h-8 sm:w-8" />
 
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
               Study Progress
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+
+            <p className="mt-1 text-xs text-slate-500 sm:text-sm">
               Track your learning activity and quiz performance.
             </p>
           </div>
@@ -331,30 +384,32 @@ export default function StudyProgressPage() {
 
         <Link
           href="/quiz"
-          className="inline-flex items-center gap-2 rounded-lg bg-[#2F80ED] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600"
+          className="inline-flex w-fit items-center gap-2 rounded-lg bg-[#2F80ED] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-600"
         >
           <Target className="h-4 w-4" />
           Practice quiz
         </Link>
       </div>
 
+      {/* Error */}
       {error && (
         <div
           role="alert"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+          className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
         >
           <span>{error}</span>
+
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="font-semibold underline"
+            className="w-fit font-semibold underline"
           >
             Retry
           </button>
         </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading */}
       {loading && (
         <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900">
           <Loader2 className="h-5 w-5 animate-spin text-[#2F80ED]" />
@@ -363,11 +418,11 @@ export default function StudyProgressPage() {
       )}
 
       {/* Overview cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <ProgressCard
           title="Documents studied"
           value={progress.documentsStudied}
-          subtitle="this week"
+          subtitle="total"
           change={progress.weeklyChange?.documents}
           icon={BookOpen}
           color="bg-blue-500"
@@ -376,7 +431,7 @@ export default function StudyProgressPage() {
         <ProgressCard
           title="Quizzes completed"
           value={progress.quizzesCompleted}
-          subtitle="this week"
+          subtitle="total"
           change={progress.weeklyChange?.quizzes}
           icon={ClipboardCheck}
           color="bg-violet-500"
@@ -385,7 +440,7 @@ export default function StudyProgressPage() {
         <ProgressCard
           title="Average quiz score"
           value={`${progress.averageScore}%`}
-          subtitle="this week"
+          subtitle="overall"
           change={progress.weeklyChange?.score}
           progress={progress.averageScore}
           icon={TrendingUp}
@@ -394,7 +449,9 @@ export default function StudyProgressPage() {
 
         <ProgressCard
           title="Study streak"
-          value={`${progress.studyStreak} ${progress.studyStreak === 1 ? "day" : "days"}`}
+          value={`${progress.studyStreak} ${
+            progress.studyStreak === 1 ? "day" : "days"
+          }`}
           subtitle="consecutive"
           change={progress.weeklyChange?.streak}
           icon={Flame}
@@ -402,43 +459,54 @@ export default function StudyProgressPage() {
         />
       </section>
 
-      {/* Performance and activity charts */}
+      {/* Performance + Study activity */}
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
-        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 xl:col-span-3">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <BarChart3 className="mt-0.5 h-5 w-5 text-[#2F80ED]" />
-              <div>
+        {/* Quiz performance */}
+        <div className="min-w-0 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 xl:col-span-3">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <BarChart3 className="mt-0.5 h-5 w-5 shrink-0 text-[#2F80ED]" />
+
+              <div className="min-w-0">
                 <h2 className="font-semibold text-slate-900 dark:text-white">
                   Quiz performance
                 </h2>
+
                 <p className="mt-1 text-xs text-slate-500">
                   Your score across completed quiz attempts
                 </p>
               </div>
             </div>
 
-            <div className="relative">
-              <select
-                aria-label="Performance time period"
-                value={period}
-                onChange={(event) => setPeriod(event.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 pr-8 text-xs text-slate-600 outline-none focus:border-[#2F80ED] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-              >
-                <option value="7">Last 7 attempts</option>
-                <option value="10">Last 10 attempts</option>
-                <option value="30">Last 30 attempts</option>
-                <option value="0">All attempts</option>
-              </select>
-            </div>
+            <select
+              aria-label="Performance time period"
+              value={period}
+              onChange={(event) =>
+                setPeriod(event.target.value)
+              }
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-[#2F80ED] sm:w-auto dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            >
+              <option value="7">Last 7 attempts</option>
+              <option value="10">Last 10 attempts</option>
+              <option value="30">Last 30 attempts</option>
+              <option value="0">All attempts</option>
+            </select>
           </div>
 
-          <div className="h-56 w-full">
+          <div className="h-56 w-full sm:h-64">
             {performanceData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
                 <LineChart
                   data={performanceData}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  margin={{
+                    top: 8,
+                    right: 8,
+                    left: 0,
+                    bottom: 0,
+                  }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -446,15 +514,22 @@ export default function StudyProgressPage() {
                     stroke="#E8EEF7"
                     className="dark:stroke-slate-800"
                   />
+
                   <XAxis
                     dataKey="date"
                     tickFormatter={(value: string) =>
-                      new Date(value).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                      })
+                      new Date(value).toLocaleDateString(
+                        "en-GB",
+                        {
+                          day: "numeric",
+                          month: "short",
+                        },
+                      )
                     }
-                    tick={{ fontSize: 10, fill: "#64748B" }}
+                    tick={{
+                      fontSize: 10,
+                      fill: "#64748B",
+                    }}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -462,15 +537,23 @@ export default function StudyProgressPage() {
                   <YAxis
                     domain={[0, 100]}
                     ticks={[0, 25, 50, 75, 100]}
-                    tickFormatter={(value) => `${value}%`}
-                    tick={{ fontSize: 10, fill: "#64748B" }}
+                    tickFormatter={(value) =>
+                      `${value}%`
+                    }
+                    tick={{
+                      fontSize: 10,
+                      fill: "#64748B",
+                    }}
                     axisLine={false}
                     tickLine={false}
                     width={38}
                   />
+
                   <Tooltip
                     labelFormatter={(value) =>
-                      new Date(String(value)).toLocaleString("en-GB", {
+                      new Date(
+                        String(value),
+                      ).toLocaleString("en-GB", {
                         day: "numeric",
                         month: "short",
                         year: "numeric",
@@ -478,8 +561,8 @@ export default function StudyProgressPage() {
                         minute: "2-digit",
                       })
                     }
-                    labelClassName="dark:text-black"
                   />
+
                   <Line
                     type="monotone"
                     dataKey="score"
@@ -505,26 +588,38 @@ export default function StudyProgressPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 xl:col-span-2">
+        {/* Study activity */}
+        <div className="min-w-0 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 xl:col-span-2">
           <div className="mb-5 flex items-start gap-3">
-            <CalendarDays className="mt-0.5 h-5 w-5 text-[#2F80ED]" />
-            <div>
+            <CalendarDays className="mt-0.5 h-5 w-5 shrink-0 text-[#2F80ED]" />
+
+            <div className="min-w-0">
               <h2 className="font-semibold text-slate-900 dark:text-white">
                 Study activity
               </h2>
+
               <p className="mt-1 text-xs text-slate-500">
-                Study sessions throughout the week
+                Your study sessions over the last 7 days
               </p>
             </div>
           </div>
 
-          <div className="h-56 w-full">
-            {progress.activity.some((day) => day.sessions > 0) ? (
-              <ResponsiveContainer width="100%" height="100%">
+          <div className="h-56 w-full sm:h-64">
+            {progress.activity.some(
+              (day) => day.sessions > 0,
+            ) ? (
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
                 <BarChart
                   data={progress.activity}
-                  margin={{ top: 8, right: 0, left: -18, bottom: 0 }}
-                  className="hover:cursor-pointer"
+                  margin={{
+                    top: 8,
+                    right: 4,
+                    left: -18,
+                    bottom: 0,
+                  }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -532,26 +627,54 @@ export default function StudyProgressPage() {
                     stroke="#E8EEF7"
                     className="dark:stroke-slate-800"
                   />
+
                   <XAxis
                     dataKey="day"
-                    tick={{ fontSize: 10, fill: "#64748B" }}
+                    tick={{
+                      fontSize: 10,
+                      fill: "#64748B",
+                    }}
                     axisLine={false}
                     tickLine={false}
                   />
+
                   <YAxis
                     allowDecimals={false}
-                    tick={{ fontSize: 10, fill: "#64748B" }}
+                    tick={{
+                      fontSize: 10,
+                      fill: "#64748B",
+                    }}
                     axisLine={false}
                     tickLine={false}
                   />
+
                   <Tooltip
-                    formatter={(value) => [value, "Study sessions"]}
+                    labelFormatter={(
+                      value,
+                      payload,
+                    ) => {
+                      const item =
+                        payload?.[0]?.payload as
+                          | StudyActivity
+                          | undefined;
+
+                      return item?.date
+                        ? `${value} · ${formatActivityDate(
+                            item.date,
+                          )}`
+                        : String(value);
+                    }}
+                    formatter={(value) => [
+                      value,
+                      "Study sessions",
+                    ]}
                     contentStyle={{
                       borderRadius: 10,
                       border: "1px solid #E2E8F0",
                       fontSize: 12,
                     }}
                   />
+
                   <Bar
                     dataKey="sessions"
                     fill="#2F80ED"
@@ -571,16 +694,18 @@ export default function StudyProgressPage() {
         </div>
       </section>
 
-      {/* Recent quiz activity and insights */}
+      {/* Recent quiz activity */}
       <section className="grid grid-cols-1 gap-4">
-        <div className="min-w-0 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5 ">
+        <div className="min-w-0 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <ClipboardCheck className="mt-0.5 h-5 w-5 text-[#2F80ED]" />
-              <div>
+            <div className="flex min-w-0 items-start gap-3">
+              <ClipboardCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#2F80ED]" />
+
+              <div className="min-w-0">
                 <h2 className="font-semibold text-slate-900 dark:text-white">
                   Recent quiz activity
                 </h2>
+
                 <p className="mt-1 text-xs text-slate-500">
                   Your latest completed quiz attempts
                 </p>
@@ -600,79 +725,129 @@ export default function StudyProgressPage() {
               <table className="w-full min-w-130 text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-500 dark:border-slate-800">
-                    <th className="px-2 py-3 font-medium">Quiz title</th>
-                    <th className="px-2 py-3 font-medium">Date</th>
-                    <th className="px-2 py-3 font-medium">Score</th>
-                    <th className="px-2 py-3 font-medium">Status</th>
-                    <th className="px-2 py-3" />
+                    <th className="px-2 py-3 font-medium">
+                      Quiz title
+                    </th>
+
+                    <th className="px-2 py-3 font-medium">
+                      Date
+                    </th>
+
+                    <th className="px-2 py-3 font-medium">
+                      Score
+                    </th>
+
+                    <th className="px-2 py-3 font-medium">
+                      Status
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {progress.recentQuizzes.map((quiz, index) => {
-                    const QuizIcon = QUIZ_ICONS[index % QUIZ_ICONS.length];
+                  {progress.recentQuizzes.map(
+                    (quiz, index) => {
+                      const QuizIcon =
+                        QUIZ_ICONS[
+                          index % QUIZ_ICONS.length
+                        ];
 
-                    const quizId = quiz.id ?? quiz._id;
-                    const quizTitle =
-                      quiz.title ?? quiz.quiz?.title ?? "Untitled quiz";
-                    const questionType =
-                      quiz.questionType ??
-                      quiz.quiz?.questionType ??
-                      "Practice";
-                    const questionCount =
-                      quiz.questionCount ?? quiz.quiz?.questionCount ?? 0;
-                    const quizDate = quiz.date ?? quiz.completedAt;
-                    const percentage = Number(quiz.percentage ?? 0);
-                    const score = Number(quiz.score ?? 0);
-                    const totalPoints = Number(quiz.totalPoints ?? 0);
-                    const status = quiz.status ?? "Completed";
+                      const quizId =
+                        quiz.id ?? quiz._id;
 
-                    return (
-                      <tr
-                        key={quizId ?? `${quizTitle}-${index}`}
-                        className="border-b border-slate-50 transition hover:bg-slate-50/80 dark:border-slate-800/70 dark:hover:bg-slate-800/40"
-                      >
-                        <td className="px-2 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2F80ED] dark:bg-blue-950/40">
-                              <QuizIcon className="h-4 w-4" />
+                      const quizTitle =
+                        quiz.title ??
+                        quiz.quiz?.title ??
+                        "Untitled quiz";
+
+                      const questionType =
+                        quiz.questionType ??
+                        quiz.quiz?.questionType ??
+                        "Practice";
+
+                      const questionCount =
+                        quiz.questionCount ??
+                        quiz.quiz?.questionCount ??
+                        0;
+
+                      const quizDate =
+                        quiz.date ??
+                        quiz.completedAt;
+
+                      const percentage = Number(
+                        quiz.percentage ?? 0,
+                      );
+
+                      const score = Number(
+                        quiz.score ?? 0,
+                      );
+
+                      const totalPoints = Number(
+                        quiz.totalPoints ?? 0,
+                      );
+
+                      const status =
+                        quiz.status ?? "Completed";
+
+                      return (
+                        <tr
+                          key={
+                            quizId ??
+                            `${quizTitle}-${index}`
+                          }
+                          className="border-b border-slate-50 transition hover:bg-slate-50/80 dark:border-slate-800/70 dark:hover:bg-slate-800/40"
+                        >
+                          <td className="px-2 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2F80ED] dark:bg-blue-950/40">
+                                <QuizIcon className="h-4 w-4" />
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="max-w-48 truncate font-medium text-slate-800 dark:text-slate-200">
+                                  {quizTitle}
+                                </p>
+
+                                <p className="mt-1 text-[10px] capitalize text-slate-400">
+                                  {questionType.replaceAll(
+                                    "_",
+                                    " ",
+                                  )}{" "}
+                                  · {questionCount}{" "}
+                                  questions
+                                </p>
+                              </div>
                             </div>
+                          </td>
 
-                            <div className="min-w-0">
-                              <p className="max-w-48 truncate font-medium text-slate-800 dark:text-slate-200">
-                                {quizTitle}
-                              </p>
+                          <td className="whitespace-nowrap px-2 py-3 text-slate-500">
+                            {quizDate
+                              ? formatDate(
+                                  quizDate,
+                                )
+                              : "—"}
+                          </td>
 
-                              <p className="mt-1 text-[10px] capitalize text-slate-400">
-                                {questionType.replaceAll("_", " ")} ·{" "}
-                                {questionCount} questions
-                              </p>
-                            </div>
-                          </div>
-                        </td>
+                          <td className="whitespace-nowrap px-2 py-3">
+                            <p className="font-semibold text-slate-700 dark:text-slate-200">
+                              {score} /{" "}
+                              {totalPoints}
+                            </p>
 
-                        <td className="whitespace-nowrap px-2 py-3 text-slate-500">
-                          {quizDate ? formatDate(quizDate) : "—"}
-                        </td>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {percentage}%
+                            </p>
+                          </td>
 
-                        <td className="whitespace-nowrap px-2 py-3">
-                          <p className="font-semibold text-slate-700 dark:text-slate-200">
-                            {score} / {totalPoints}
-                          </p>
-                          <p className="mt-1 text-[10px] text-slate-400">
-                            {percentage}%
-                          </p>
-                        </td>
-
-                        <td className="px-2 py-3">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <td className="px-2 py-3">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    },
+                  )}
                 </tbody>
               </table>
             </div>
@@ -686,7 +861,8 @@ export default function StudyProgressPage() {
                   href="/quiz"
                   className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-[#2F80ED] hover:underline"
                 >
-                  Explore quizzes <ArrowRight className="h-4 w-4" />
+                  Explore quizzes
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
               }
             />
@@ -695,8 +871,8 @@ export default function StudyProgressPage() {
       </section>
 
       <p className="text-xs text-slate-400">
-        Your study progress is based on recorded learning activity and quiz
-        results.
+        Your study progress is based on recorded learning
+        activity and quiz results.
       </p>
     </div>
   );
@@ -718,12 +894,16 @@ function EmptyState({
       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-[#2F80ED] dark:bg-blue-950/40">
         <Icon className="h-5 w-5" />
       </div>
-      <p className="font-medium text-slate-800 dark:text-slate-200">{title}</p>
+
+      <p className="font-medium text-slate-800 dark:text-slate-200">
+        {title}
+      </p>
+
       <p className="mt-1 max-w-xs text-xs leading-5 text-slate-500">
         {description}
       </p>
+
       {action}
     </div>
   );
 }
-
