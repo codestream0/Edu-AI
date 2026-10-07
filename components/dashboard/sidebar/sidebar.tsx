@@ -8,8 +8,8 @@ import {
   secondaryNavigation,
   bottomNavigation,
 } from "./sidebar_data";
-
 import { SidebarItem } from "./sidebarItem";
+
 import { useAppSelector } from "@/lib/redux/hooks";
 
 interface SidebarProps {
@@ -19,13 +19,22 @@ interface SidebarProps {
 
 export function Sidebar({ open, onToggle }: SidebarProps) {
   const user = useAppSelector((state) => state.auth.user);
+
   const fullName = user?.fullName || "User";
+
+  const handleNavigation = () => {
+    // Always collapse after navigating
+    if (open) {
+      onToggle();
+    }
+  };
 
   return (
     <>
+      {/* Overlay when sidebar is expanded */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40"
           onClick={onToggle}
         />
       )}
@@ -43,30 +52,39 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           bg-white
           transition-all
           duration-300
-
           dark:border-slate-800
           dark:bg-slate-950
 
-          lg:static
-          lg:z-auto
-
-          ${
-            open
-              ? "w-64 translate-x-0"
-              : "w-18 -translate-x-full lg:w-18 lg:translate-x-0"
-          }
+          ${open ? "w-64" : "w-[72px]"}
         `}
       >
-        <div className="flex h-20 items-center justify-between px-4">
+        {/* Header */}
+        <div
+          className={`
+            flex
+            h-20
+            items-center
+            border-b
+            border-slate-100
+            dark:border-slate-800
+            ${open ? "justify-between px-4" : "justify-center"}
+          `}
+        >
           <div
-            className={`flex items-center ${
-              open ? "gap-3" : "w-full justify-center"
-            }`}
+            className={`
+              flex
+              items-center
+              ${open ? "gap-3" : "justify-center"}
+            `}
           >
-
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-500/20">
+            <button
+              type="button"
+              onClick={onToggle}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-600"
+              aria-label={open ? "Close sidebar" : "Open sidebar"}
+            >
               <GraduationCap size={27} />
-            </div>
+            </button>
 
             {open && (
               <span
@@ -85,11 +103,13 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
 
           {open && (
             <button
+              type="button"
               onClick={onToggle}
               className="
                 rounded-lg
                 p-1.5
                 text-slate-500
+                transition
                 hover:bg-slate-100
                 dark:text-slate-400
                 dark:hover:bg-slate-800
@@ -101,6 +121,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           )}
         </div>
 
+        {/* Navigation */}
         <div className="flex h-[calc(100vh-80px)] flex-col px-3">
           {/* Main navigation */}
           <nav className="space-y-1">
@@ -111,6 +132,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                 href={item.href}
                 icon={item.icon}
                 collapsed={!open}
+                onClick={handleNavigation}
               />
             ))}
           </nav>
@@ -141,6 +163,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                     href={item.href}
                     icon={item.icon}
                     collapsed={!open}
+                    onClick={handleNavigation}
                   />
                 ))}
               </nav>
@@ -166,10 +189,12 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                   href={item.href}
                   icon={item.icon}
                   collapsed={!open}
+                  onClick={handleNavigation}
                 />
               ))}
             </nav>
 
+            {/* User profile */}
             {open && (
               <div
                 className="
@@ -200,7 +225,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                     dark:text-blue-400
                   "
                 >
-                  {fullName.split("")[0].toUpperCase()}
+                  {fullName.charAt(0).toUpperCase()}
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -213,7 +238,10 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                       dark:text-slate-100
                     "
                   >
-                    {fullName.split(" ", 2)[0].charAt(0).toLowerCase() +
+                    {fullName
+                      .split(" ", 2)[0]
+                      .charAt(0)
+                      .toUpperCase() +
                       fullName.split(" ", 2)[0].slice(1)}
                   </p>
 

@@ -161,7 +161,7 @@ const AITutorPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-140px)] overflow-hidden rounded-2xl border bg-white dark:bg-slate-950">
+    <div className="flex h-[calc(100vh-140px)] overflow-hidden rounded-2xl mt-20 border bg-white dark:bg-slate-950">
       <ConversationSidebar
         conversations={conversations}
         activeConversationId={conversationId}

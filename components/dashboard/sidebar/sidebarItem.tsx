@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LucideIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface SidebarItemProps {
   title: string;
   href: string;
-  icon: LucideIcon;
+  icon: React.ElementType;
   collapsed?: boolean;
+  onClick?: () => void;
 }
 
 export function SidebarItem({
@@ -17,30 +16,41 @@ export function SidebarItem({
   href,
   icon: Icon,
   collapsed = false,
+  onClick,
 }: SidebarItemProps) {
-
   const pathname = usePathname();
 
-  const isActive = pathname === href;
+  const isActive =
+    pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link
       href={href}
+      onClick={onClick}
       title={collapsed ? title : undefined}
-      className={cn(
-        "flex items-center rounded-xl py-2.5 text-sm font-medium transition-colors",
-        collapsed
-          ? "justify-center px-0"
-          : "gap-3 px-3",
-        isActive
-          ? "bg-[#EAF3FF] text-[#2F80ED] dark:bg-blue-950/50 dark:text-blue-400"
-          : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-      )}
+      className={`
+        group
+        flex
+        h-11
+        items-center
+        rounded-xl
+        transition-colors
+        ${
+          collapsed
+            ? "justify-center"
+            : "gap-3 px-3"
+        }
+        ${
+          isActive
+            ? "bg-[#EAF3FF] text-[#2F80ED] dark:bg-blue-950/50 dark:text-blue-400"
+            : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        }
+      `}
     >
-      <Icon className="h-4.5 w-4.5 shrink-0" />
+      <Icon className="h-5 w-5 shrink-0" />
 
       {!collapsed && (
-        <span className="whitespace-nowrap">
+        <span className="truncate text-sm font-medium">
           {title}
         </span>
       )}
