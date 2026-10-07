@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   ArrowUp,
   Mic,
@@ -8,27 +7,28 @@ import {
 } from "lucide-react";
 
 interface TutorInputProps {
+  value: string;
+  onChange: (value: string) => void;
   onSend?: (message: string) => void;
-  initialValue?: string;
+  disabled?: boolean;
 }
 
 export function TutorInput({
+  value,
+  onChange,
   onSend,
-  initialValue = "",
+  disabled = false,
 }: TutorInputProps) {
-  const [message, setMessage] = useState(initialValue);
-
   const handleSend = () => {
-    const trimmedMessage = message.trim();
+    const trimmedMessage = value.trim();
 
-    if (!trimmedMessage) return;
+    if (!trimmedMessage || disabled) return;
 
     onSend?.(trimmedMessage);
-    setMessage("");
   };
 
   const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -50,15 +50,17 @@ export function TutorInput({
           dark:bg-slate-900
         "
       >
-        {/* Attachment */}
         <button
           type="button"
+          disabled={disabled}
           className="
             mb-1 rounded-lg p-2
             text-slate-500
             transition
             hover:bg-slate-200
             hover:text-slate-700
+            disabled:cursor-not-allowed
+            disabled:opacity-50
             dark:hover:bg-slate-800
             dark:hover:text-slate-300
           "
@@ -67,11 +69,11 @@ export function TutorInput({
           <Paperclip className="h-5 w-5" />
         </button>
 
-        {/* Input */}
         <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={disabled}
           placeholder="Ask EDU AI anything..."
           rows={1}
           className="
@@ -86,20 +88,23 @@ export function TutorInput({
             text-slate-900
             outline-none
             placeholder:text-slate-400
+            disabled:cursor-not-allowed
             dark:text-slate-100
             dark:placeholder:text-slate-500
           "
         />
 
-        {/* Voice */}
         <button
           type="button"
+          disabled={disabled}
           className="
             mb-1 rounded-lg p-2
             text-slate-500
             transition
             hover:bg-slate-200
             hover:text-slate-700
+            disabled:cursor-not-allowed
+            disabled:opacity-50
             dark:hover:bg-slate-800
             dark:hover:text-slate-300
           "
@@ -108,11 +113,10 @@ export function TutorInput({
           <Mic className="h-5 w-5" />
         </button>
 
-        {/* Send */}
         <button
           type="button"
           onClick={handleSend}
-          disabled={!message.trim()}
+          disabled={!value.trim() || disabled}
           className="
             mb-1 flex h-9 w-9 items-center
             justify-center rounded-xl
