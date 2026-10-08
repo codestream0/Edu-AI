@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +24,12 @@ interface Document {
   processingProgress?: number;
 }
 
+const POLL_INTERVAL = 2000;
+
+// Prevent the UI from polling forever if the backend
+// remains stuck in "processing".
+const MAX_PROCESSING_TIME = 5 * 60 * 1000;
+
 export default function DocumentSummaryPage() {
   const { id } = useParams<{ id: string }>();
 
@@ -34,42 +39,69 @@ export default function DocumentSummaryPage() {
   const [summary, setSummary] = useState("");
   const [generating, setGenerating] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [exporting, setExporting] = useState(false);
 
+  /**
+   * Prevent multiple summary requests.
+   */
   const summaryRequestInFlight = useRef(false);
 
-  const processingPollRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  /**
+   * Prevent multiple processing polling loops.
+   */
+  const pollingInFlight = useRef(false);
 
-  const summaryExportRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Cancel polling when the component unmounts
+   * or the document ID changes.
+   */
+  const pollingCancelled = useRef(false);
+
+  /**
+   * Store the active polling timeout.
+   */
+  const processingPollRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Prevent summary generation from being triggered
+   * multiple times after processing completes.
+   */
+  const summaryGenerationStarted = useRef(false);
 
   /**
    * Load one document.
    */
-  const loadDocument = useCallback(async (): Promise<Document> => {
-    const response = await api.get(
-      `/document/${encodeURIComponent(id)}`,
-    );
+  const loadDocument = useCallback(
+    async (): Promise<Document> => {
+      const response = await api.get(
+        `/document/${encodeURIComponent(id)}`,
+      );
 
-    const selected: Document | undefined = response.data?.document;
+      const selected: Document | undefined =
+        response.data?.document;
 
-    if (!selected) {
-      throw new Error("This document could not be found.");
-    }
+      if (!selected) {
+        throw new Error(
+          "This document could not be found.",
+        );
+      }
 
-    setDocument(selected);
-    setSummary(selected.summary?.trim() ?? "");
+      setDocument(selected);
+      setSummary(selected.summary?.trim() ?? "");
 
-    return selected;
-  }, [id]);
+      return selected;
+    },
+    [id],
+  );
 
   /**
    * Generate a summary or force regeneration.
    */
   const generateDocumentSummary = useCallback(
     async (regenerate = false) => {
-      if (summaryRequestInFlight.current) return;
+      if (summaryRequestInFlight.current) {
+        return;
+      }
 
       summaryRequestInFlight.current = true;
 
@@ -77,16 +109,23 @@ export default function DocumentSummaryPage() {
         setGenerating(true);
         setError("");
 
-        const endpoint = `/document/${encodeURIComponent(id)}/summary`;
+        const endpoint = `/document/${encodeURIComponent(
+          id,
+        )}/summary`;
 
         const response = await api.post(
-          regenerate ? `${endpoint}?regenerate=true` : endpoint,
+          regenerate
+            ? `${endpoint}?regenerate=true`
+            : endpoint,
         );
 
-        const newSummary: string | undefined = response.data?.summary;
+        const newSummary: string | undefined =
+          response.data?.summary;
 
         if (!newSummary?.trim()) {
-          throw new Error("The server did not return a summary.");
+          throw new Error(
+            "The server did not return a summary.",
+          );
         }
 
         setSummary(newSummary);
@@ -96,15 +135,24 @@ export default function DocumentSummaryPage() {
             ? {
                 ...previous,
                 summary: newSummary,
+                status: "completed",
               }
             : previous,
         );
       } catch (err: unknown) {
-        console.error("Summary generation failed:", err);
+        console.error(
+          "Summary generation failed:",
+          err,
+        );
 
-        let message = "Failed to generate summary. Please try again.";
+        let message =
+          "Failed to generate summary. Please try again.";
 
-        if (err && typeof err === "object" && "response" in err) {
+        if (
+          err &&
+          typeof err === "object" &&
+          "response" in err
+        ) {
           const apiError = err as {
             response?: {
               data?: {
@@ -132,69 +180,203 @@ export default function DocumentSummaryPage() {
   );
 
   /**
-   * Poll while the document is being uploaded or processed.
+   * Poll document processing status.
+   *
+   * Polling stops when:
+   * - the document completes
+   * - the document fails
+   * - the component unmounts
+   * - the maximum processing time is reached
    */
-  const waitForDocumentProcessing = useCallback(async () => {
-    setProcessing(true);
-    setError("");
+  const waitForDocumentProcessing = useCallback(
+    async () => {
+      if (pollingInFlight.current) {
+        return;
+      }
 
-    const poll = async (): Promise<void> => {
+      pollingInFlight.current = true;
+      pollingCancelled.current = false;
+      summaryGenerationStarted.current = false;
+
+      setProcessing(true);
+      setError("");
+
+      const startedAt = Date.now();
+
       try {
-        const selected = await loadDocument();
+        while (!pollingCancelled.current) {
+          /**
+           * Stop if the backend has been stuck for too long.
+           */
+          if (
+            Date.now() - startedAt >=
+            MAX_PROCESSING_TIME
+          ) {
+            setProcessing(false);
 
-        if (selected.status === "failed") {
-          setProcessing(false);
-          setError(
-            "Document processing failed. Please try uploading the document again.",
-          );
-          return;
-        }
+            setError(
+              "Document processing is taking longer than expected. Please refresh the page and check the document again.",
+            );
 
-        if (
-          selected.status === "uploaded" ||
-          selected.status === "processing"
-        ) {
-          processingPollRef.current = setTimeout(() => {
-            void poll();
-          }, 2000);
-
-          return;
-        }
-
-        if (selected.status === "completed") {
-          setProcessing(false);
-
-          // Reuse the cached summary if one already exists.
-          if (selected.summary?.trim()) {
-            return;
+            break;
           }
 
-          // OCR has completed, so summary generation can begin.
-          await generateDocumentSummary();
+          try {
+            const response = await api.get(
+              `/document/${encodeURIComponent(id)}`,
+            );
 
-          return;
+            const selected: Document | undefined =
+              response.data?.document;
+
+            if (!selected) {
+              throw new Error(
+                "This document could not be found.",
+              );
+            }
+
+            if (pollingCancelled.current) {
+              break;
+            }
+
+            setDocument(selected);
+            setSummary(selected.summary?.trim() ?? "");
+
+            /**
+             * Processing failed.
+             */
+            if (selected.status === "failed") {
+              setProcessing(false);
+
+              setError(
+                "Document processing failed. Please upload the document again.",
+              );
+
+              break;
+            }
+
+            /**
+             * Processing completed.
+             */
+            if (selected.status === "completed") {
+              setProcessing(false);
+
+              /**
+               * If a summary already exists,
+               * don't generate another one.
+               */
+              if (selected.summary?.trim()) {
+                break;
+              }
+
+              /**
+               * Generate summary only once.
+               */
+              if (
+                !summaryGenerationStarted.current
+              ) {
+                summaryGenerationStarted.current =
+                  true;
+
+                await generateDocumentSummary(false);
+              }
+
+              break;
+            }
+
+            /**
+             * Still processing.
+             */
+            if (
+              selected.status === "uploaded" ||
+              selected.status === "processing"
+            ) {
+              await new Promise<void>((resolve) => {
+                processingPollRef.current =
+                  setTimeout(
+                    resolve,
+                    POLL_INTERVAL,
+                  );
+              });
+
+              continue;
+            }
+
+            /**
+             * Unknown document status.
+             */
+            setProcessing(false);
+
+            setError(
+              "The document has an unknown processing status.",
+            );
+
+            break;
+          } catch (err) {
+            console.error(
+              "Document processing polling error:",
+              err,
+            );
+
+            /**
+             * Retry temporary network/API errors
+             * until the timeout is reached.
+             */
+            if (
+              Date.now() - startedAt <
+              MAX_PROCESSING_TIME
+            ) {
+              await new Promise<void>((resolve) => {
+                processingPollRef.current =
+                  setTimeout(
+                    resolve,
+                    POLL_INTERVAL,
+                  );
+              });
+
+              continue;
+            }
+
+            setProcessing(false);
+
+            setError(
+              "Failed to check document processing status. Please try again.",
+            );
+
+            break;
+          }
         }
-
+      } finally {
+        pollingInFlight.current = false;
         setProcessing(false);
-        setError("The document has an unknown processing status.");
-      } catch (err) {
-        console.error("Document processing polling error:", err);
 
-        setProcessing(false);
-        setError(
-          "Failed to check document processing status. Please try again.",
-        );
+        if (processingPollRef.current) {
+          clearTimeout(processingPollRef.current);
+          processingPollRef.current = null;
+        }
       }
-    };
-
-    await poll();
-  }, [loadDocument, generateDocumentSummary]);
+    },
+    [id, generateDocumentSummary],
+  );
 
   /**
    * Initialize the page.
    */
   useEffect(() => {
     let active = true;
+
+    /**
+     * Cancel anything from a previous initialization.
+     */
+    pollingCancelled.current = true;
+
+    if (processingPollRef.current) {
+      clearTimeout(processingPollRef.current);
+      processingPollRef.current = null;
+    }
+
+    pollingInFlight.current = false;
+    summaryGenerationStarted.current = false;
 
     const initialize = async () => {
       setLoading(true);
@@ -206,31 +388,51 @@ export default function DocumentSummaryPage() {
       try {
         const selected = await loadDocument();
 
-        if (!active) return;
+        if (!active) {
+          return;
+        }
 
+        /**
+         * Failed document.
+         */
         if (selected.status === "failed") {
           setError(
             "Document processing failed. Please upload the document again.",
           );
+
           return;
         }
 
+        /**
+         * Document still needs processing.
+         */
         if (
           selected.status === "uploaded" ||
           selected.status === "processing"
         ) {
-          setProcessing(true);
           await waitForDocumentProcessing();
           return;
         }
 
+        /**
+         * Document is already completed.
+         */
         if (selected.status === "completed") {
           if (!selected.summary?.trim()) {
-            await generateDocumentSummary();
+            await generateDocumentSummary(false);
           }
+
+          return;
         }
+
+        setError(
+          "The document has an unknown processing status.",
+        );
       } catch (err) {
-        console.error("Failed to initialize summary page:", err);
+        console.error(
+          "Failed to initialize summary page:",
+          err,
+        );
 
         if (active) {
           setError(
@@ -251,9 +453,18 @@ export default function DocumentSummaryPage() {
     return () => {
       active = false;
 
+      /**
+       * Cancel polling.
+       */
+      pollingCancelled.current = true;
+
       if (processingPollRef.current) {
         clearTimeout(processingPollRef.current);
+        processingPollRef.current = null;
       }
+
+      pollingInFlight.current = false;
+      summaryGenerationStarted.current = false;
     };
   }, [
     id,
@@ -261,108 +472,6 @@ export default function DocumentSummaryPage() {
     waitForDocumentProcessing,
     generateDocumentSummary,
   ]);
-
-  /**
-   * Export the generated summary as a PDF.
-   */
-  const exportSummaryAsPDF = useCallback(async () => {
-    if (!summaryExportRef.current || !summary.trim()) {
-      return;
-    }
-
-    try {
-      setExporting(true);
-      setError("");
-
-      // Dynamically import browser-only PDF libraries.
-      const [{ default: html2canvas }, { default: jsPDF }] =
-        await Promise.all([
-          import("html2canvas"),
-          import("jspdf"),
-        ]);
-
-      const element = summaryExportRef.current;
-
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: element.scrollWidth,
-      });
-
-      const imageData = canvas.toDataURL("image/png");
-
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      const margin = 10;
-
-      const contentWidth = pageWidth - margin * 2;
-      const contentHeight =
-        (canvas.height * contentWidth) / canvas.width;
-
-      let heightLeft = contentHeight;
-      let position = margin;
-
-      // First page.
-      pdf.addImage(
-        imageData,
-        "PNG",
-        margin,
-        position,
-        contentWidth,
-        contentHeight,
-      );
-
-      heightLeft -= pageHeight - margin * 2;
-
-      // Additional pages.
-      while (heightLeft > 0) {
-        position = -(contentHeight - heightLeft) + margin;
-
-        pdf.addPage();
-
-        pdf.addImage(
-          imageData,
-          "PNG",
-          margin,
-          position,
-          contentWidth,
-          contentHeight,
-        );
-
-        heightLeft -= pageHeight - margin * 2;
-      }
-
-      const rawFileName =
-        document?.title ||
-        document?.originalName ||
-        "edu-ai-summary";
-
-      const safeFileName = rawFileName
-        .replace(/\.[^/.]+$/, "")
-        .replace(/[^a-z0-9]+/gi, "-")
-        .replace(/^-+|-+$/g, "")
-        .toLowerCase();
-
-      pdf.save(`${safeFileName || "edu-ai-summary"}-summary.pdf`);
-    } catch (err) {
-      console.error("PDF export failed:", err);
-
-      setError(
-        "Failed to export the summary as PDF. Please try again.",
-      );
-    } finally {
-      setExporting(false);
-    }
-  }, [document, summary]);
 
   const title =
     document?.title ||
@@ -396,7 +505,11 @@ export default function DocumentSummaryPage() {
         </div>
 
         <p className="mt-1 text-sm text-slate-500">
-          {loading ? "Loading document..." : document ? title : "Document"}
+          {loading
+            ? "Loading document..."
+            : document
+              ? title
+              : "Document"}
         </p>
       </div>
 
@@ -436,12 +549,10 @@ export default function DocumentSummaryPage() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              {/* Export PDF */}
+              {/* Export PDF button - intentionally no functionality yet */}
               <button
                 type="button"
-                onClick={() => void exportSummaryAsPDF()}
                 disabled={
-                  exporting ||
                   generating ||
                   isProcessing ||
                   document.status !== "completed" ||
@@ -449,20 +560,17 @@ export default function DocumentSummaryPage() {
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-[#2F80ED] hover:text-[#2F80ED] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
               >
-                {exporting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-
-                {exporting ? "Exporting PDF..." : "Export PDF"}
+                <Download className="h-4 w-4" />
+                Export PDF
               </button>
 
               {/* Generate / regenerate */}
               <button
                 type="button"
                 onClick={() =>
-                  void generateDocumentSummary(Boolean(summary))
+                  void generateDocumentSummary(
+                    Boolean(summary),
+                  )
                 }
                 disabled={
                   generating ||
@@ -503,16 +611,20 @@ export default function DocumentSummaryPage() {
                   </p>
 
                   <p className="mt-1 text-blue-600/80 dark:text-blue-300/80">
-                    We&apos;re extracting text from your document. This may
-                    take a while for large documents.
+                    We&apos;re extracting text from your
+                    document. This may take a while for
+                    large documents.
                   </p>
 
                   {document.pageCount &&
-                    document.processingPage !== undefined && (
+                    document.processingPage !==
+                      undefined && (
                       <p className="mt-2 text-xs">
-                        Page {document.processingPage} of{" "}
+                        Page{" "}
+                        {document.processingPage} of{" "}
                         {document.pageCount}
-                        {document.processingProgress !== undefined &&
+                        {document.processingProgress !==
+                          undefined &&
                           ` · ${document.processingProgress}% complete`}
                       </p>
                     )}
@@ -544,79 +656,77 @@ export default function DocumentSummaryPage() {
           )}
 
           {/* Summary */}
-          {summary && !generating && !isProcessing && (
-            <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
-              {/*
-                This wrapper is specifically used for PDF generation.
-                It uses a white background so the exported PDF remains
-                readable even when the application is in dark mode.
-              */}
-              <div
-                ref={summaryExportRef}
-                className="bg-white px-1 py-2 text-slate-900"
-              >
-                {/* PDF title */}
-                <div className="mb-6 border-b border-slate-200 pb-4">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-[#2F80ED]" />
+          {summary &&
+            !generating &&
+            !isProcessing && (
+              <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+                <div className="bg-white px-1 py-2 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+                  <div className="mb-6 border-b border-slate-200 pb-4 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-[#2F80ED]" />
 
-                    <h2 className="text-xl font-bold text-slate-900">
-                      AI Summary
-                    </h2>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                        AI Summary
+                      </h2>
+                    </div>
+
+                    <h3 className="mt-2 text-lg font-semibold text-slate-800 dark:text-slate-200">
+                      {title}
+                    </h3>
+
+                    {document.originalName && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Original file:{" "}
+                        {document.originalName}
+                      </p>
+                    )}
+
+                    {document.pageCount && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Pages: {document.pageCount}
+                      </p>
+                    )}
                   </div>
 
-                  <h3 className="mt-2 text-lg font-semibold text-slate-800">
-                    {title}
-                  </h3>
+                  {/* Markdown summary */}
+                  <div className="prose prose-slate max-w-none dark:prose-invert">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                    >
+                      {summary}
+                    </ReactMarkdown>
+                  </div>
 
-                  {document.originalName && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Original file: {document.originalName}
+                  {/* Footer */}
+                  <div className="mt-8 border-t border-slate-200 pt-4 dark:border-slate-800">
+                    <p className="text-center text-xs text-slate-400">
+                      Generated by EDU AI
                     </p>
-                  )}
-
-                  {document.pageCount && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Pages: {document.pageCount}
-                    </p>
-                  )}
-                </div>
-
-                {/* Markdown summary */}
-                <div className="prose prose-slate max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {summary}
-                  </ReactMarkdown>
-                </div>
-
-                {/* PDF footer */}
-                <div className="mt-8 border-t border-slate-200 pt-4">
-                  <p className="text-center text-xs text-slate-400">
-                    Generated by EDU AI
-                  </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Empty summary */}
-          {!summary && !generating && !isProcessing && !error && (
-            <div className="mt-6 rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
-              <Sparkles className="mx-auto h-8 w-8 text-[#2F80ED]" />
+          {!summary &&
+            !generating &&
+            !isProcessing &&
+            !error && (
+              <div className="mt-6 rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
+                <Sparkles className="mx-auto h-8 w-8 text-[#2F80ED]" />
 
-              <h3 className="mt-3 font-semibold text-slate-900 dark:text-white">
-                No summary yet
-              </h3>
+                <h3 className="mt-3 font-semibold text-slate-900 dark:text-white">
+                  No summary yet
+                </h3>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Let EDU AI analyze this document and create a study-friendly
-                summary.
-              </p>
-            </div>
-          )}
+                <p className="mt-1 text-sm text-slate-500">
+                  Let EDU AI analyze this document and
+                  create a study-friendly summary.
+                </p>
+              </div>
+            )}
         </div>
       )}
     </div>
   );
 }
-
