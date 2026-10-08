@@ -44,9 +44,12 @@ const LoginPage = () => {
         password,
       });
 
-      const { user, accessToken } = response.data;
-
-      dispatch(setCredentials({ User: user, accessToken }));
+      dispatch(
+        setCredentials({
+          user: response.data.user,
+          accessToken: response.data.accessToken,
+        }),
+      );
 
       router.push("/dashboard");
     } catch (error) {
