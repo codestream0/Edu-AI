@@ -4,6 +4,7 @@ export interface User {
   _id: string;
   fullName: string;
   email: string;
+  createdAt?: string;
 }
 
 interface AuthState {
@@ -21,16 +22,24 @@ const initialState: AuthState = {
 const authSlice = createSlice({
   name: "auth",
   initialState,
+
   reducers: {
-    setCredentials: (state, 
-      action: PayloadAction<{User: User, accessToken: string}>) => {
-      state.user = action.payload.User;
+    setCredentials: (
+      state,
+      action: PayloadAction<{
+        user: User;
+        accessToken: string;
+      }>,
+    ) => {
+      state.user = action.payload.user;
       state.accessToken = action.payload.accessToken;
       state.isAuthenticated = true;
     },
 
-
-    setAccessToken: (state, action: PayloadAction<string>) => {
+    setAccessToken: (
+      state,
+      action: PayloadAction<string>,
+    ) => {
       state.accessToken = action.payload;
       state.isAuthenticated = true;
     },
@@ -43,6 +52,10 @@ const authSlice = createSlice({
   },
 });
 
-export const { setCredentials, setAccessToken, logout } = authSlice.actions;
+export const {
+  setCredentials,
+  setAccessToken,
+  logout,
+} = authSlice.actions;
 
 export default authSlice.reducer;

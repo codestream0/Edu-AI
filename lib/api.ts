@@ -23,7 +23,7 @@ export const api = axios.create({
 
 // Separate instance for refreshing tokens.
 // This prevents the refresh request from triggering the same interceptors.
-const refreshApi = axios.create({
+export const refreshApi = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
 });
