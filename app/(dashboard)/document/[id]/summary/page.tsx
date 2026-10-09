@@ -1,12 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  Download,
-  Loader2,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, Download, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -39,6 +34,8 @@ export default function DocumentSummaryPage() {
   const [summary, setSummary] = useState("");
   const [generating, setGenerating] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const summaryExportRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
 
   /**
    * Prevent multiple summary requests.
@@ -59,8 +56,7 @@ export default function DocumentSummaryPage() {
   /**
    * Store the active polling timeout.
    */
-  const processingPollRef =
-    useRef<ReturnType<typeof setTimeout> | null>(null);
+  const processingPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
    * Prevent summary generation from being triggered
@@ -71,28 +67,20 @@ export default function DocumentSummaryPage() {
   /**
    * Load one document.
    */
-  const loadDocument = useCallback(
-    async (): Promise<Document> => {
-      const response = await api.get(
-        `/document/${encodeURIComponent(id)}`,
-      );
+  const loadDocument = useCallback(async (): Promise<Document> => {
+    const response = await api.get(`/document/${encodeURIComponent(id)}`);
 
-      const selected: Document | undefined =
-        response.data?.document;
+    const selected: Document | undefined = response.data?.document;
 
-      if (!selected) {
-        throw new Error(
-          "This document could not be found.",
-        );
-      }
+    if (!selected) {
+      throw new Error("This document could not be found.");
+    }
 
-      setDocument(selected);
-      setSummary(selected.summary?.trim() ?? "");
+    setDocument(selected);
+    setSummary(selected.summary?.trim() ?? "");
 
-      return selected;
-    },
-    [id],
-  );
+    return selected;
+  }, [id]);
 
   /**
    * Generate a summary or force regeneration.
@@ -109,23 +97,16 @@ export default function DocumentSummaryPage() {
         setGenerating(true);
         setError("");
 
-        const endpoint = `/document/${encodeURIComponent(
-          id,
-        )}/summary`;
+        const endpoint = `/document/${encodeURIComponent(id)}/summary`;
 
         const response = await api.post(
-          regenerate
-            ? `${endpoint}?regenerate=true`
-            : endpoint,
+          regenerate ? `${endpoint}?regenerate=true` : endpoint,
         );
 
-        const newSummary: string | undefined =
-          response.data?.summary;
+        const newSummary: string | undefined = response.data?.summary;
 
         if (!newSummary?.trim()) {
-          throw new Error(
-            "The server did not return a summary.",
-          );
+          throw new Error("The server did not return a summary.");
         }
 
         setSummary(newSummary);
@@ -140,19 +121,11 @@ export default function DocumentSummaryPage() {
             : previous,
         );
       } catch (err: unknown) {
-        console.error(
-          "Summary generation failed:",
-          err,
-        );
+        console.error("Summary generation failed:", err);
 
-        let message =
-          "Failed to generate summary. Please try again.";
+        let message = "Failed to generate summary. Please try again.";
 
-        if (
-          err &&
-          typeof err === "object" &&
-          "response" in err
-        ) {
+        if (err && typeof err === "object" && "response" in err) {
           const apiError = err as {
             response?: {
               data?: {
@@ -163,9 +136,7 @@ export default function DocumentSummaryPage() {
           };
 
           message =
-            apiError.response?.data?.message ||
-            apiError.message ||
-            message;
+            apiError.response?.data?.message || apiError.message || message;
         } else if (err instanceof Error) {
           message = err.message;
         }
@@ -188,176 +159,146 @@ export default function DocumentSummaryPage() {
    * - the component unmounts
    * - the maximum processing time is reached
    */
-  const waitForDocumentProcessing = useCallback(
-    async () => {
-      if (pollingInFlight.current) {
-        return;
-      }
+  const waitForDocumentProcessing = useCallback(async () => {
+    if (pollingInFlight.current) {
+      return;
+    }
 
-      pollingInFlight.current = true;
-      pollingCancelled.current = false;
-      summaryGenerationStarted.current = false;
+    pollingInFlight.current = true;
+    pollingCancelled.current = false;
+    summaryGenerationStarted.current = false;
 
-      setProcessing(true);
-      setError("");
+    setProcessing(true);
+    setError("");
 
-      const startedAt = Date.now();
+    const startedAt = Date.now();
 
-      try {
-        while (!pollingCancelled.current) {
+    try {
+      while (!pollingCancelled.current) {
+        /**
+         * Stop if the backend has been stuck for too long.
+         */
+        if (Date.now() - startedAt >= MAX_PROCESSING_TIME) {
+          setProcessing(false);
+
+          setError(
+            "Document processing is taking longer than expected. Please refresh the page and check the document again.",
+          );
+
+          break;
+        }
+
+        try {
+          const response = await api.get(`/document/${encodeURIComponent(id)}`);
+
+          const selected: Document | undefined = response.data?.document;
+
+          if (!selected) {
+            throw new Error("This document could not be found.");
+          }
+
+          if (pollingCancelled.current) {
+            break;
+          }
+
+          setDocument(selected);
+          setSummary(selected.summary?.trim() ?? "");
+
           /**
-           * Stop if the backend has been stuck for too long.
+           * Processing failed.
+           */
+          if (selected.status === "failed") {
+            setProcessing(false);
+
+            setError(
+              "Document processing failed. Please upload the document again.",
+            );
+
+            break;
+          }
+
+          /**
+           * Processing completed.
+           */
+          if (selected.status === "completed") {
+            setProcessing(false);
+
+            /**
+             * If a summary already exists,
+             * don't generate another one.
+             */
+            if (selected.summary?.trim()) {
+              break;
+            }
+
+            /**
+             * Generate summary only once.
+             */
+            if (!summaryGenerationStarted.current) {
+              summaryGenerationStarted.current = true;
+
+              await generateDocumentSummary(false);
+            }
+
+            break;
+          }
+
+          /**
+           * Still processing.
            */
           if (
-            Date.now() - startedAt >=
-            MAX_PROCESSING_TIME
+            selected.status === "uploaded" ||
+            selected.status === "processing"
           ) {
-            setProcessing(false);
+            await new Promise<void>((resolve) => {
+              processingPollRef.current = setTimeout(resolve, POLL_INTERVAL);
+            });
 
-            setError(
-              "Document processing is taking longer than expected. Please refresh the page and check the document again.",
-            );
-
-            break;
+            continue;
           }
 
-          try {
-            const response = await api.get(
-              `/document/${encodeURIComponent(id)}`,
-            );
+          /**
+           * Unknown document status.
+           */
+          setProcessing(false);
 
-            const selected: Document | undefined =
-              response.data?.document;
+          setError("The document has an unknown processing status.");
 
-            if (!selected) {
-              throw new Error(
-                "This document could not be found.",
-              );
-            }
+          break;
+        } catch (err) {
+          console.error("Document processing polling error:", err);
 
-            if (pollingCancelled.current) {
-              break;
-            }
+          /**
+           * Retry temporary network/API errors
+           * until the timeout is reached.
+           */
+          if (Date.now() - startedAt < MAX_PROCESSING_TIME) {
+            await new Promise<void>((resolve) => {
+              processingPollRef.current = setTimeout(resolve, POLL_INTERVAL);
+            });
 
-            setDocument(selected);
-            setSummary(selected.summary?.trim() ?? "");
-
-            /**
-             * Processing failed.
-             */
-            if (selected.status === "failed") {
-              setProcessing(false);
-
-              setError(
-                "Document processing failed. Please upload the document again.",
-              );
-
-              break;
-            }
-
-            /**
-             * Processing completed.
-             */
-            if (selected.status === "completed") {
-              setProcessing(false);
-
-              /**
-               * If a summary already exists,
-               * don't generate another one.
-               */
-              if (selected.summary?.trim()) {
-                break;
-              }
-
-              /**
-               * Generate summary only once.
-               */
-              if (
-                !summaryGenerationStarted.current
-              ) {
-                summaryGenerationStarted.current =
-                  true;
-
-                await generateDocumentSummary(false);
-              }
-
-              break;
-            }
-
-            /**
-             * Still processing.
-             */
-            if (
-              selected.status === "uploaded" ||
-              selected.status === "processing"
-            ) {
-              await new Promise<void>((resolve) => {
-                processingPollRef.current =
-                  setTimeout(
-                    resolve,
-                    POLL_INTERVAL,
-                  );
-              });
-
-              continue;
-            }
-
-            /**
-             * Unknown document status.
-             */
-            setProcessing(false);
-
-            setError(
-              "The document has an unknown processing status.",
-            );
-
-            break;
-          } catch (err) {
-            console.error(
-              "Document processing polling error:",
-              err,
-            );
-
-            /**
-             * Retry temporary network/API errors
-             * until the timeout is reached.
-             */
-            if (
-              Date.now() - startedAt <
-              MAX_PROCESSING_TIME
-            ) {
-              await new Promise<void>((resolve) => {
-                processingPollRef.current =
-                  setTimeout(
-                    resolve,
-                    POLL_INTERVAL,
-                  );
-              });
-
-              continue;
-            }
-
-            setProcessing(false);
-
-            setError(
-              "Failed to check document processing status. Please try again.",
-            );
-
-            break;
+            continue;
           }
-        }
-      } finally {
-        pollingInFlight.current = false;
-        setProcessing(false);
 
-        if (processingPollRef.current) {
-          clearTimeout(processingPollRef.current);
-          processingPollRef.current = null;
+          setProcessing(false);
+
+          setError(
+            "Failed to check document processing status. Please try again.",
+          );
+
+          break;
         }
       }
-    },
-    [id, generateDocumentSummary],
-  );
+    } finally {
+      pollingInFlight.current = false;
+      setProcessing(false);
+
+      if (processingPollRef.current) {
+        clearTimeout(processingPollRef.current);
+        processingPollRef.current = null;
+      }
+    }
+  }, [id, generateDocumentSummary]);
 
   /**
    * Initialize the page.
@@ -425,14 +366,9 @@ export default function DocumentSummaryPage() {
           return;
         }
 
-        setError(
-          "The document has an unknown processing status.",
-        );
+        setError("The document has an unknown processing status.");
       } catch (err) {
-        console.error(
-          "Failed to initialize summary page:",
-          err,
-        );
+        console.error("Failed to initialize summary page:", err);
 
         if (active) {
           setError(
@@ -466,17 +402,195 @@ export default function DocumentSummaryPage() {
       pollingInFlight.current = false;
       summaryGenerationStarted.current = false;
     };
-  }, [
-    id,
-    loadDocument,
-    waitForDocumentProcessing,
-    generateDocumentSummary,
-  ]);
+  }, [id, loadDocument, waitForDocumentProcessing, generateDocumentSummary]);
+
+  const exportSummaryAsPDF = () => {
+    const element = summaryExportRef.current;
+
+    if (!element || exporting || !summary.trim()) {
+      return;
+    }
+
+    setExporting(true);
+    setError("");
+
+    try {
+      const printWindow = window.open("", "_blank");
+
+      if (!printWindow) {
+        throw new Error(
+          "The PDF window was blocked. Allow pop-ups and try again.",
+        );
+      }
+
+      const safeTitle =
+        (document?.title || document?.originalName || "document")
+          .replace(/[^\w-]+/g, "_")
+          .replace(/^_+|_+$/g, "") || "document";
+
+      // Clone the summary so the original page remains unchanged.
+      const clonedSummary = element.cloneNode(true) as HTMLElement;
+
+      // Remove the export-only identifier from the cloned element.
+      clonedSummary.removeAttribute("id");
+
+      printWindow.document.open();
+      printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>${safeTitle} - Summary</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 18mm;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              margin: 0;
+              color: #0f172a;
+              background: #ffffff;
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 11pt;
+              line-height: 1.65;
+              overflow-wrap: anywhere;
+            }
+
+            .summary {
+              width: 100%;
+              color: #0f172a;
+              background: #ffffff;
+            }
+
+            h1, h2, h3, h4, h5, h6 {
+              color: #0f172a;
+              line-height: 1.3;
+              break-after: avoid;
+            }
+
+            p, li {
+              color: #334155;
+            }
+
+            pre, blockquote, table, img {
+              break-inside: avoid;
+              max-width: 100%;
+            }
+
+            pre {
+              white-space: pre-wrap;
+              overflow-wrap: anywhere;
+              padding: 12px;
+              background: #f1f5f9;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+            }
+
+            code {
+              font-family: "Courier New", monospace;
+              overflow-wrap: anywhere;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 9pt;
+            }
+
+            th, td {
+              border: 1px solid #cbd5e1;
+              padding: 6px;
+              text-align: left;
+            }
+
+            th {
+              background: #f1f5f9;
+            }
+
+            a {
+              color: #1d4ed8;
+              text-decoration: underline;
+            }
+
+            img {
+              max-width: 100%;
+              height: auto;
+            }
+
+            hr {
+              border: 0;
+              border-top: 1px solid #e2e8f0;
+            }
+
+            @media print {
+              a {
+                color: #1d4ed8;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <main class="summary"></main>
+        </body>
+      </html>
+    `);
+      printWindow.document.close();
+
+      const printContainer = printWindow.document.querySelector("main.summary");
+
+      if (!printContainer) {
+        printWindow.close();
+        throw new Error("Could not prepare the summary for printing.");
+      }
+
+      printContainer.appendChild(
+        printWindow.document.importNode(clonedSummary, true),
+      );
+
+      const startPrint = () => {
+        printWindow.focus();
+        printWindow.print();
+        setExporting(false);
+      };
+
+      // Wait for cloned images to load before opening the print dialog.
+      const images = Array.from(printWindow.document.images);
+
+      Promise.all(
+        images.map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete) {
+                resolve();
+                return;
+              }
+
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+            }),
+        ),
+      ).then(startPrint);
+    } catch (error) {
+      console.error("PDF export failed:", error);
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to prepare the summary for PDF export.",
+      );
+
+      setExporting(false);
+    }
+  };
 
   const title =
-    document?.title ||
-    document?.originalName ||
-    "Untitled document";
+    document?.title || document?.originalName || "Untitled document";
 
   const isProcessing =
     processing ||
@@ -505,11 +619,7 @@ export default function DocumentSummaryPage() {
         </div>
 
         <p className="mt-1 text-sm text-slate-500">
-          {loading
-            ? "Loading document..."
-            : document
-              ? title
-              : "Document"}
+          {loading ? "Loading document..." : document ? title : "Document"}
         </p>
       </div>
 
@@ -549,10 +659,12 @@ export default function DocumentSummaryPage() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              {/* Export PDF button - intentionally no functionality yet */}
+              {/* Export the generated summary as a PDF */}
               <button
                 type="button"
+                onClick={() => void exportSummaryAsPDF()}
                 disabled={
+                  exporting ||
                   generating ||
                   isProcessing ||
                   document.status !== "completed" ||
@@ -560,22 +672,20 @@ export default function DocumentSummaryPage() {
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-[#2F80ED] hover:text-[#2F80ED] disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-400"
               >
-                <Download className="h-4 w-4" />
-                Export PDF
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {exporting ? "Exporting..." : "Export PDF"}
               </button>
 
               {/* Generate / regenerate */}
               <button
                 type="button"
-                onClick={() =>
-                  void generateDocumentSummary(
-                    Boolean(summary),
-                  )
-                }
+                onClick={() => void generateDocumentSummary(Boolean(summary))}
                 disabled={
-                  generating ||
-                  isProcessing ||
-                  document.status !== "completed"
+                  generating || isProcessing || document.status !== "completed"
                 }
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2F80ED] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -611,20 +721,15 @@ export default function DocumentSummaryPage() {
                   </p>
 
                   <p className="mt-1 text-blue-600/80 dark:text-blue-300/80">
-                    We&apos;re extracting text from your
-                    document. This may take a while for
-                    large documents.
+                    We&apos;re extracting text from your document. This may take
+                    a while for large documents.
                   </p>
 
                   {document.pageCount &&
-                    document.processingPage !==
-                      undefined && (
+                    document.processingPage !== undefined && (
                       <p className="mt-2 text-xs">
-                        Page{" "}
-                        {document.processingPage} of{" "}
-                        {document.pageCount}
-                        {document.processingProgress !==
-                          undefined &&
+                        Page {document.processingPage} of {document.pageCount}
+                        {document.processingProgress !== undefined &&
                           ` · ${document.processingProgress}% complete`}
                       </p>
                     )}
@@ -656,75 +761,71 @@ export default function DocumentSummaryPage() {
           )}
 
           {/* Summary */}
-          {summary &&
-            !generating &&
-            !isProcessing && (
-              <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
-                <div className="bg-white px-1 py-2 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
-                  <div className="mb-6 border-b border-slate-200 pb-4 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-[#2F80ED]" />
+          {summary && !generating && !isProcessing && (
+            <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+              <div
+                ref={summaryExportRef}
+                id="edu-ai-summary-export"
+                className="px-6 py-8 text-slate-100 sm:px-8"
+              >
+                <div className="mb-6 border-b border-slate-200 pb-4 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-[#2F80ED]" />
 
-                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                        AI Summary
-                      </h2>
-                    </div>
-
-                    <h3 className="mt-2 text-lg font-semibold text-slate-800 dark:text-slate-200">
-                      {title}
-                    </h3>
-
-                    {document.originalName && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Original file:{" "}
-                        {document.originalName}
-                      </p>
-                    )}
-
-                    {document.pageCount && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Pages: {document.pageCount}
-                      </p>
-                    )}
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                      AI Summary
+                    </h2>
                   </div>
 
-                  {/* Markdown summary */}
-                  <div className="prose prose-slate max-w-none dark:prose-invert">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                    >
-                      {summary}
-                    </ReactMarkdown>
-                  </div>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-800 dark:text-slate-200">
+                    {title}
+                  </h3>
 
-                  {/* Footer */}
-                  <div className="mt-8 border-t border-slate-200 pt-4 dark:border-slate-800">
-                    <p className="text-center text-xs text-slate-400">
-                      Generated by EDU AI
+                  {document.originalName && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Original file: {document.originalName}
                     </p>
-                  </div>
+                  )}
+
+                  {document.pageCount && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Pages: {document.pageCount}
+                    </p>
+                  )}
+                </div>
+
+                {/* Markdown summary */}
+                <div className="prose prose-slate max-w-none dark:prose-invert">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {summary}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-8 border-t border-slate-200 pt-4 dark:border-slate-800">
+                  <p className="text-center text-xs text-slate-400">
+                    Generated by EDU AI
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
           {/* Empty summary */}
-          {!summary &&
-            !generating &&
-            !isProcessing &&
-            !error && (
-              <div className="mt-6 rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
-                <Sparkles className="mx-auto h-8 w-8 text-[#2F80ED]" />
+          {!summary && !generating && !isProcessing && !error && (
+            <div className="mt-6 rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
+              <Sparkles className="mx-auto h-8 w-8 text-[#2F80ED]" />
 
-                <h3 className="mt-3 font-semibold text-slate-900 dark:text-white">
-                  No summary yet
-                </h3>
+              <h3 className="mt-3 font-semibold text-slate-900 dark:text-white">
+                No summary yet
+              </h3>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Let EDU AI analyze this document and
-                  create a study-friendly summary.
-                </p>
-              </div>
-            )}
+              <p className="mt-1 text-sm text-slate-500">
+                Let EDU AI analyze this document and create a study-friendly
+                summary.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
