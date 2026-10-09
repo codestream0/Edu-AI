@@ -29,18 +29,18 @@ export const mainNavigation = [
 
 ]
 
-export const secondaryNavigation = [
-    {
-        title:"Saved Materials",
-        href:"/saved",
-        icon: Bookmark,
-    },
-    {
-        title:"Recent activity",
-        href:"/activity",
-        icon: Clock,
-    }
-]
+// export const secondaryNavigation = [
+//     {
+//         title:"Saved Materials",
+//         href:"/saved",
+//         icon: Bookmark,
+//     },
+//     {
+//         title:"Recent activity",
+//         href:"/activity",
+//         icon: Clock,
+//     }
+// ]
 
 export const bottomNavigation = [
     {

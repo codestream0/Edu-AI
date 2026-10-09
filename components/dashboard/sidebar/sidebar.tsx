@@ -5,7 +5,7 @@ import { ChevronDown, GraduationCap, X } from "lucide-react";
 
 import {
   mainNavigation,
-  secondaryNavigation,
+  // secondaryNavigation,
   bottomNavigation,
 } from "./sidebar_data";
 import { SidebarItem } from "./sidebarItem";
@@ -138,7 +138,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
           </nav>
 
           {/* Library */}
-          {open && (
+          {/* {open && (
             <div className="mt-8">
               <div
                 className="
@@ -168,7 +168,7 @@ export function Sidebar({ open, onToggle }: SidebarProps) {
                 ))}
               </nav>
             </div>
-          )}
+          )} */}
 
           {/* Bottom section */}
           <div className="mt-auto pb-4">
