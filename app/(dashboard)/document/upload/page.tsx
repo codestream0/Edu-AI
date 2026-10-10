@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 export default function UploadDocumentPage() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string>("");
-  const [success,setSuccess] = useState<string>("")
+  const [success, setSuccess] = useState<string>("");
   async function handleFileUpload() {
     if (!file) {
       setError("Choose a document before uploading.");
@@ -21,16 +21,18 @@ export default function UploadDocumentPage() {
     formData.append("title", file.name);
 
     try {
-      setError("")
+      setError("");
       const response = await api.post("/document/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       console.log(response.data);
       setFile(null);
-      setSuccess("document uploaded successfully!!!")
+      setSuccess("document uploaded successfully!!!");
     } catch (error) {
       console.error("File upload error:", error);
-      setError("Failed to upload document, Only PDF, DOCX, and PPTX files are allowed.");
+      setError(
+        "Failed to upload document, Only PDF, DOCX, and PPTX files are allowed.",
+      );
     }
   }
 
@@ -97,7 +99,7 @@ export default function UploadDocumentPage() {
         />
       </label>
       {error && <p className="text-red-500 text-sm">{error}</p>}
-      {success && <p className="text-green-700 text-sm" >{success}</p>}
+      {success && <p className="text-green-700 text-sm">{success}</p>}
       {file && (
         <button
           className="w-full rounded-xl bg-[#2F80ED] px-5 py-3 font-medium text-white hover:bg-blue-600"
